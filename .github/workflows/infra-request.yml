@@ -1,8 +1,8 @@
 name: infra-request
 
 # Stages a catalog version into a project slot. Does NOT touch AWS.
-# Renders projects/<project>/slots/<name>/ from catalogs/<catalog>/<version>/
-# and generates the per-env tfvars under projects/<project>/configs/.
+# Renders projects/<project>/<slot>/ from catalogs/<catalog>/<version>/
+# and generates the per-env tfvars at <slot>/configs/config-<env>.json.
 # Opens a PR so a human can review the slot before infra-provision runs.
 
 on:
@@ -22,10 +22,11 @@ on:
         type: string
         default: v1.0.0
       env:
-        description: 'Target environment (drives configs/config-<env>.json generation)'
+        description: 'Target environment (drives <slot>/configs/config-<env>.json generation)'
         required: true
         type: choice
         options: [nonprod, prod]
+        default: nonprod
 
 permissions:
   contents: write
@@ -74,48 +75,58 @@ jobs:
             echo "Catalog $SRC is missing configs/config.json" >&2
             exit 1
           fi
+          SERVICE_NAME=$(jq -r '.service_name // .name' "$BASE_CFG")
           echo "src=${SRC}" >> "$GITHUB_OUTPUT"
           echo "base_cfg=${BASE_CFG}" >> "$GITHUB_OUTPUT"
-
-      - name: Generate config-${{ inputs.env }}.json for project
-        id: envcfg
-        run: |
-          mkdir -p "${{ steps.proj.outputs.dir }}/configs"
-          PROJ_CFG="${{ steps.proj.outputs.dir }}/configs/config-${{ inputs.env }}.json"
-
-          if [ -f "$PROJ_CFG" ]; then
-            echo "Project already has $PROJ_CFG — leaving as-is."
-          else
-            jq --arg env "${{ inputs.env }}" '
-              . + { environment: $env }
-                | .tags = ((.tags // {}) + { env: $env })
-            ' "${{ steps.cat.outputs.base_cfg }}" > "$PROJ_CFG"
-            echo "Generated $PROJ_CFG from catalog template."
-          fi
-
-          SERVICE_NAME=$(jq -r '.service_name // .name' "$PROJ_CFG")
           echo "service_name=${SERVICE_NAME}" >> "$GITHUB_OUTPUT"
 
       - name: Derive slot path
         id: derive
         run: |
-          NAME="${{ steps.common.outputs.company }}-${{ steps.common.outputs.project }}-${{ inputs.catalog }}-${{ steps.envcfg.outputs.service_name }}"
-          SLOT="${{ steps.proj.outputs.dir }}/slots/${NAME}"
+          # Slot lives directly under the project folder — no slots/ parent.
+          NAME="${{ steps.common.outputs.company }}-${{ steps.common.outputs.project }}-${{ inputs.catalog }}-${{ steps.cat.outputs.service_name }}"
+          SLOT="${{ steps.proj.outputs.dir }}/${NAME}"
           echo "name=${NAME}" >> "$GITHUB_OUTPUT"
           echo "slot=${SLOT}" >> "$GITHUB_OUTPUT"
 
       - name: Render catalog version into slot
         run: |
-          rm -rf "${{ steps.derive.outputs.slot }}"
-          mkdir -p "${{ steps.derive.outputs.slot }}"
-          cp -r "${{ steps.cat.outputs.src }}/." "${{ steps.derive.outputs.slot }}/"
+          SLOT="${{ steps.derive.outputs.slot }}"
+
+          # Preserve any per-env configs from prior requests so adding
+          # a second env doesn't wipe the first one.
+          BACKUP=$(mktemp -d)
+          if [ -d "$SLOT/configs" ]; then
+            for f in "$SLOT"/configs/config-*.json; do
+              [ -e "$f" ] && cp "$f" "$BACKUP/"
+            done
+          fi
+
+          rm -rf "$SLOT"
+          mkdir -p "$SLOT"
+          cp -r "${{ steps.cat.outputs.src }}/." "$SLOT/"
+
+          for f in "$BACKUP"/config-*.json; do
+            [ -e "$f" ] && cp "$f" "$SLOT/configs/"
+          done
+          rm -rf "$BACKUP"
+
           echo "${{ inputs.catalog }}@${{ inputs.version }}" \
-            > "${{ steps.derive.outputs.slot }}/.catalog-version"
+            > "$SLOT/.catalog-version"
+
+      - name: Generate config-${{ inputs.env }}.json inside slot
+        run: |
+          OUT="${{ steps.derive.outputs.slot }}/configs/config-${{ inputs.env }}.json"
+          jq --arg env "${{ inputs.env }}" '
+            . + { environment: $env }
+              | .tags = ((.tags // {}) + { env: $env })
+          ' "${{ steps.cat.outputs.base_cfg }}" > "$OUT"
+          echo "→ $OUT"
 
       - name: Generate backend.hcl
         run: |
-          # Slot lives 4 levels deep, so its state key encodes the full
-          # project/slot/env path → unique per (project, slot, env).
+          # Slot lives 3 levels deep (projects/<proj>/<slot>/). State key
+          # encodes the full project/slot/env path → unique per (slot, env).
           cat > "${{ steps.derive.outputs.slot }}/backend.hcl" <<EOF
           bucket         = "${{ steps.common.outputs.bucket }}"
           key            = "${{ steps.derive.outputs.slot }}/${{ inputs.env }}/terraform.tfstate"
@@ -138,9 +149,7 @@ jobs:
           git push origin --delete "$BRANCH" 2>/dev/null || true
 
           git checkout -b "$BRANCH"
-          git add \
-            "${{ steps.derive.outputs.slot }}" \
-            "${{ steps.proj.outputs.dir }}/configs/config-${{ inputs.env }}.json"
+          git add "${{ steps.derive.outputs.slot }}"
 
           if git diff --staged --quiet; then
             echo "No changes — slot was already up to date for this catalog version."

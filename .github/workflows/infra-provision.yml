@@ -91,7 +91,7 @@ jobs:
           fi
           SLOT="$CAND"
           NAME=$(basename "$SLOT")
-          ENV_CFG="$SLOT/config/config-${{ inputs.env }}.json"
+          ENV_CFG="$SLOT/configs/config-${{ inputs.env }}.json"
           if [ ! -f "$ENV_CFG" ]; then
             echo "Slot is missing $ENV_CFG. Re-run infra-request." >&2
             exit 1
@@ -137,7 +137,7 @@ jobs:
           # Per-env tfvars live INSIDE the slot, no traversal needed.
           terraform plan $DESTROY_FLAG \
             -var-file="../common-config.json" \
-            -var-file="config/config-${{ inputs.env }}.json" \
+            -var-file="configs/config-${{ inputs.env }}.json" \
             -out=tfplan
 
       - uses: actions/upload-artifact@v4
