@@ -16,9 +16,10 @@ on:
         options:
           - comp-proj
       slot:
-        description: 'Complete slot folder name as staged by infra-request (e.g. cat-aws-vpc-demo). Must exist at projects/<project>/<slot>/.'
-        required: true
+        description: 'Slot folder name (e.g. cat-aws-vpc-demo). LEAVE BLANK to auto-detect when the project has exactly one slot.'
+        required: false
         type: string
+        default: ''
       env:
         description: 'Target environment'
         required: true
@@ -73,23 +74,45 @@ jobs:
       - name: Locate staged slot
         id: find
         run: |
-          # Direct lookup: projects/<project>/<slot>/.
-          SLOT="${{ steps.proj.outputs.dir }}/${{ inputs.slot }}"
-          if [ ! -d "$SLOT" ]; then
-            echo "No staged slot at $SLOT." >&2
-            echo "Available slots in ${{ steps.proj.outputs.dir }}:" >&2
-            find "${{ steps.proj.outputs.dir }}" -mindepth 1 -maxdepth 1 -type d -printf '  %f\n' >&2 || true
-            echo "Run infra-request to stage one." >&2
-            exit 1
+          PROJ_DIR="${{ steps.proj.outputs.dir }}"
+          SLOT_INPUT="${{ inputs.slot }}"
+
+          if [ -n "$SLOT_INPUT" ]; then
+            # Explicit lookup
+            SLOT="$PROJ_DIR/$SLOT_INPUT"
+            if [ ! -d "$SLOT" ]; then
+              echo "No staged slot at $SLOT." >&2
+              echo "Available slots in $PROJ_DIR:" >&2
+              find "$PROJ_DIR" -mindepth 1 -maxdepth 1 -type d -printf '  %f\n' >&2 || true
+              echo "Run infra-request to stage one." >&2
+              exit 1
+            fi
+          else
+            # Auto-detect: only acceptable if exactly one slot exists.
+            mapfile -t CAND < <(find "$PROJ_DIR" -mindepth 1 -maxdepth 1 -type d 2>/dev/null)
+            COUNT=${#CAND[@]}
+            if [ "$COUNT" -eq 0 ]; then
+              echo "No slots in $PROJ_DIR. Run infra-request first." >&2
+              exit 1
+            fi
+            if [ "$COUNT" -gt 1 ]; then
+              echo "Project has multiple slots — pass one explicitly via the 'slot' input:" >&2
+              for s in "${CAND[@]}"; do echo "  $(basename "$s")" >&2; done
+              exit 1
+            fi
+            SLOT="${CAND[0]}"
+            echo "Auto-detected slot: $(basename "$SLOT")"
           fi
+
+          NAME=$(basename "$SLOT")
           ENV_CFG="$SLOT/configs/config-${{ inputs.env }}.json"
           if [ ! -f "$ENV_CFG" ]; then
             echo "Slot is missing $ENV_CFG." >&2
-            echo "Re-run infra-request for ${{ inputs.slot }} to regenerate per-env configs." >&2
+            echo "Re-run infra-request for ${NAME} to regenerate per-env configs." >&2
             exit 1
           fi
           echo "slot=${SLOT}" >> "$GITHUB_OUTPUT"
-          echo "name=${{ inputs.slot }}" >> "$GITHUB_OUTPUT"
+          echo "name=${NAME}" >> "$GITHUB_OUTPUT"
 
       - name: Generate backend.hcl in slot
         run: |
