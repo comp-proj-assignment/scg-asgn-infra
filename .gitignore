@@ -1,0 +1,15 @@
+# Pipeline-generated catalog instances (regenerated on every run from catalogs/)
+proj/
+
+# Terraform
+.terraform/
+.terraform.lock.hcl
+*.tfstate
+*.tfstate.backup
+tfplan
+backend.hcl
+
+# Editor
+.vscode/
+.idea/
+.DS_Store

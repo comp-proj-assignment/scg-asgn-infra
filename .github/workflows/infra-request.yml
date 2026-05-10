@@ -1,0 +1,145 @@
+name: infra-request
+
+on:
+  workflow_dispatch:
+    inputs:
+      catalog:
+        description: 'Catalog template (e.g. cat-aws-vpc)'
+        required: true
+        type: string
+      env:
+        description: 'Target environment (selects config/config-{env}.json)'
+        required: true
+        type: choice
+        options: [nonprod, prod]
+      action:
+        description: 'Action'
+        required: true
+        type: choice
+        options: [create, destroy]
+
+permissions:
+  id-token: write
+  contents: read
+
+env:
+  TF_VERSION: 1.7.5
+
+jobs:
+  plan:
+    name: plan (${{ inputs.action }})
+    runs-on: ubuntu-latest
+    outputs:
+      slot: ${{ steps.derive.outputs.slot }}
+      name: ${{ steps.derive.outputs.name }}
+      region: ${{ steps.common.outputs.region }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Read common-config.json
+        id: common
+        run: |
+          {
+            echo "company=$(jq -r .company common-config.json)"
+            echo "project=$(jq -r .project common-config.json)"
+            echo "bucket=$(jq -r .remote_state.bucket common-config.json)"
+            echo "region=$(jq -r .remote_state.region common-config.json)"
+            echo "lock_table=$(jq -r .remote_state.lock_table common-config.json)"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Read service_name from env config
+        id: envcfg
+        run: |
+          SERVICE_NAME=$(jq -r .service_name "config/config-${{ inputs.env }}.json")
+          echo "service_name=${SERVICE_NAME}" >> "$GITHUB_OUTPUT"
+
+      - name: Derive slot path
+        id: derive
+        run: |
+          NAME="${{ steps.common.outputs.company }}-${{ steps.common.outputs.project }}-${{ inputs.catalog }}-${{ steps.envcfg.outputs.service_name }}"
+          SLOT="${{ steps.common.outputs.project }}/${NAME}"
+          echo "name=${NAME}" >> "$GITHUB_OUTPUT"
+          echo "slot=${SLOT}" >> "$GITHUB_OUTPUT"
+
+      - name: Copy catalog into slot
+        run: |
+          rm -rf "${{ steps.derive.outputs.slot }}"
+          mkdir -p "${{ steps.derive.outputs.slot }}"
+          cp -r "catalogs/${{ inputs.catalog }}/." "${{ steps.derive.outputs.slot }}/"
+
+      - name: Generate backend.hcl
+        run: |
+          cat > "${{ steps.derive.outputs.slot }}/backend.hcl" <<EOF
+          bucket         = "${{ steps.common.outputs.bucket }}"
+          key            = "${{ steps.derive.outputs.slot }}/${{ inputs.env }}/terraform.tfstate"
+          region         = "${{ steps.common.outputs.region }}"
+          dynamodb_table = "${{ steps.common.outputs.lock_table }}"
+          encrypt        = true
+          EOF
+
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.AWS_ROLE_ARN }}
+          aws-region: ${{ steps.common.outputs.region }}
+
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ env.TF_VERSION }}
+
+      - name: terraform init
+        working-directory: ${{ steps.derive.outputs.slot }}
+        run: terraform init -backend-config=backend.hcl
+
+      - name: terraform plan
+        working-directory: ${{ steps.derive.outputs.slot }}
+        run: |
+          DESTROY_FLAG=""
+          [ "${{ inputs.action }}" = "destroy" ] && DESTROY_FLAG="-destroy"
+          terraform plan $DESTROY_FLAG \
+            -var-file="../../common-config.json" \
+            -var-file="../../config/config-${{ inputs.env }}.json" \
+            -out=tfplan
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: tfplan-${{ steps.derive.outputs.name }}-${{ inputs.env }}
+          path: |
+            ${{ steps.derive.outputs.slot }}/tfplan
+            ${{ steps.derive.outputs.slot }}/backend.hcl
+          retention-days: 7
+
+  apply:
+    name: apply (${{ inputs.action }}) — needs approval
+    needs: plan
+    runs-on: ubuntu-latest
+    environment: ${{ inputs.env }}-approve
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Recreate slot from catalog
+        run: |
+          rm -rf "${{ needs.plan.outputs.slot }}"
+          mkdir -p "${{ needs.plan.outputs.slot }}"
+          cp -r "catalogs/${{ inputs.catalog }}/." "${{ needs.plan.outputs.slot }}/"
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: tfplan-${{ needs.plan.outputs.name }}-${{ inputs.env }}
+          path: ${{ needs.plan.outputs.slot }}
+
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.AWS_ROLE_ARN }}
+          aws-region: ${{ needs.plan.outputs.region }}
+
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ env.TF_VERSION }}
+
+      - name: terraform init
+        working-directory: ${{ needs.plan.outputs.slot }}
+        run: terraform init -backend-config=backend.hcl
+
+      - name: terraform apply (saved plan)
+        working-directory: ${{ needs.plan.outputs.slot }}
+        run: terraform apply -auto-approve tfplan

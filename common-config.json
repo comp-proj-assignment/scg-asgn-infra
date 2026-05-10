@@ -1,0 +1,9 @@
+{
+  "company": "comp",
+  "project": "proj",
+  "remote_state": {
+    "bucket": "comp-proj-tfstate",
+    "region": "ap-southeast-1",
+    "lock_table": "comp-proj-tfstate-lock"
+  }
+}

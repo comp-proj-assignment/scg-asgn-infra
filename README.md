@@ -1,1 +1,1 @@
-# scg-asgn-infra
+# comp-proj-infra
