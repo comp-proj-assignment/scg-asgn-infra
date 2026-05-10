@@ -13,3 +13,4 @@ backend.hcl
 .vscode/
 .idea/
 .DS_Store
+.env
