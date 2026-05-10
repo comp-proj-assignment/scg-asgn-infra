@@ -70,34 +70,22 @@ jobs:
       - name: Find staged slot
         id: find
         run: |
-          # Slot pattern: company-project-catalog-<service>, sitting
-          # directly under projects/<project>/. List candidates that
-          # match the requested catalog and pick the only one — fail
-          # loudly on zero or many.
-          CAND=$(find "${{ steps.proj.outputs.dir }}" \
-            -mindepth 1 -maxdepth 1 -type d \
-            -name "${{ steps.common.outputs.company }}-${{ steps.common.outputs.project }}-${{ inputs.catalog }}-*" \
-            2>/dev/null || true)
-          COUNT=$(printf '%s\n' "$CAND" | grep -c . || true)
-          if [ "$COUNT" -eq 0 ]; then
-            echo "No staged slot for catalog '${{ inputs.catalog }}' in '${{ inputs.project }}'." >&2
-            echo "Run infra-request first and merge the PR." >&2
+          # Slot is at projects/<project>/<catalog>/ — direct lookup,
+          # no globbing. One slot per (project, catalog) pair.
+          SLOT="${{ steps.proj.outputs.dir }}/${{ inputs.catalog }}"
+          if [ ! -d "$SLOT" ]; then
+            echo "No staged slot at $SLOT." >&2
+            echo "Run infra-request for project '${{ inputs.project }}' + catalog '${{ inputs.catalog }}' first and merge the PR." >&2
             exit 1
           fi
-          if [ "$COUNT" -gt 1 ]; then
-            echo "Multiple slots match — disambiguation needed:" >&2
-            printf '  %s\n' $CAND >&2
-            exit 1
-          fi
-          SLOT="$CAND"
-          NAME=$(basename "$SLOT")
           ENV_CFG="$SLOT/configs/config-${{ inputs.env }}.json"
           if [ ! -f "$ENV_CFG" ]; then
-            echo "Slot is missing $ENV_CFG. Re-run infra-request." >&2
+            echo "Slot is missing $ENV_CFG." >&2
+            echo "Re-run infra-request with env=${{ inputs.env }} to generate it." >&2
             exit 1
           fi
           echo "slot=${SLOT}" >> "$GITHUB_OUTPUT"
-          echo "name=${NAME}" >> "$GITHUB_OUTPUT"
+          echo "name=${{ inputs.catalog }}" >> "$GITHUB_OUTPUT"
 
       - name: Generate backend.hcl in slot
         run: |

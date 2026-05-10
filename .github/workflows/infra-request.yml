@@ -83,8 +83,9 @@ jobs:
       - name: Derive slot path
         id: derive
         run: |
-          # Slot lives directly under the project folder — no slots/ parent.
-          NAME="${{ steps.common.outputs.company }}-${{ steps.common.outputs.project }}-${{ inputs.catalog }}-${{ steps.cat.outputs.service_name }}"
+          # Slot is just the catalog name under the project folder:
+          # projects/<project>/<catalog>/. One slot per (project, catalog).
+          NAME="${{ inputs.catalog }}"
           SLOT="${{ steps.proj.outputs.dir }}/${NAME}"
           echo "name=${NAME}" >> "$GITHUB_OUTPUT"
           echo "slot=${SLOT}" >> "$GITHUB_OUTPUT"
