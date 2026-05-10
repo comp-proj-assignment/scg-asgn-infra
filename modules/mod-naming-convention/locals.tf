@@ -1,0 +1,9 @@
+locals {
+  # Single computed map keyed by the same keys the caller passed in.
+  # Each value bundles every name variant + the tag set, so callers
+  # only ever look up `module.naming.aws_resource["<key>"].<field>`.
+  aws_resource = {
+    "aws_vpc" : "vpc"
+    "aws_subnet" :"sub"
+  }
+}

@@ -1,74 +1,121 @@
 name: infra-request
 
+# Stages a catalog version into a project slot. Does NOT touch AWS.
+# Renders projects/<project>/slots/<name>/ from catalogs/<catalog>/<version>/
+# and generates the per-env tfvars under projects/<project>/configs/.
+# Opens a PR so a human can review the slot before infra-provision runs.
+
 on:
   workflow_dispatch:
     inputs:
+      project:
+        description: 'Project folder under projects/ (e.g. comp-proj). Created by project-init.'
+        required: true
+        type: string
       catalog:
         description: 'Catalog template (e.g. cat-aws-vpc)'
         required: true
         type: string
+      version:
+        description: 'Catalog version folder (e.g. v1.0.0). Must exist under catalogs/<catalog>/.'
+        required: true
+        type: string
+        default: v1.0.0
       env:
-        description: 'Target environment (selects config/config-{env}.json)'
+        description: 'Target environment (drives configs/config-<env>.json generation)'
         required: true
         type: choice
         options: [nonprod, prod]
-      action:
-        description: 'Action'
-        required: true
-        type: choice
-        options: [create, destroy]
 
 permissions:
-  id-token: write
-  contents: read
-
-env:
-  TF_VERSION: 1.7.5
+  contents: write
+  pull-requests: write
 
 jobs:
-  plan:
-    name: plan (${{ inputs.action }})
+  stage:
     runs-on: ubuntu-latest
-    outputs:
-      slot: ${{ steps.derive.outputs.slot }}
-      name: ${{ steps.derive.outputs.name }}
-      region: ${{ steps.common.outputs.region }}
     steps:
       - uses: actions/checkout@v4
+
+      - name: Locate project folder
+        id: proj
+        run: |
+          PROJECT_DIR="projects/${{ inputs.project }}"
+          if [ ! -d "$PROJECT_DIR" ]; then
+            echo "Project folder not found: $PROJECT_DIR" >&2
+            echo "Run the project-init workflow first." >&2
+            exit 1
+          fi
+          echo "dir=${PROJECT_DIR}" >> "$GITHUB_OUTPUT"
 
       - name: Read common-config.json
         id: common
         run: |
+          CC="${{ steps.proj.outputs.dir }}/common-config.json"
           {
-            echo "company=$(jq -r .company common-config.json)"
-            echo "project=$(jq -r .project common-config.json)"
-            echo "bucket=$(jq -r .remote_state.bucket common-config.json)"
-            echo "region=$(jq -r .remote_state.region common-config.json)"
-            echo "lock_table=$(jq -r .remote_state.lock_table common-config.json)"
+            echo "company=$(jq -r .company "$CC")"
+            echo "project=$(jq -r .project "$CC")"
+            echo "bucket=$(jq -r .remote_state.bucket "$CC")"
+            echo "region=$(jq -r .remote_state.region "$CC")"
+            echo "lock_table=$(jq -r .remote_state.lock_table "$CC")"
           } >> "$GITHUB_OUTPUT"
 
-      - name: Read service_name from env config
+      - name: Resolve catalog version
+        id: cat
+        run: |
+          SRC="catalogs/${{ inputs.catalog }}/${{ inputs.version }}"
+          BASE_CFG="$SRC/configs/config.json"
+          if [ ! -d "$SRC" ]; then
+            echo "Catalog version not found: $SRC" >&2
+            ls "catalogs/${{ inputs.catalog }}/" >&2 || true
+            exit 1
+          fi
+          if [ ! -f "$BASE_CFG" ]; then
+            echo "Catalog $SRC is missing configs/config.json" >&2
+            exit 1
+          fi
+          echo "src=${SRC}" >> "$GITHUB_OUTPUT"
+          echo "base_cfg=${BASE_CFG}" >> "$GITHUB_OUTPUT"
+
+      - name: Generate config-${{ inputs.env }}.json for project
         id: envcfg
         run: |
-          SERVICE_NAME=$(jq -r .service_name "config/config-${{ inputs.env }}.json")
+          mkdir -p "${{ steps.proj.outputs.dir }}/configs"
+          PROJ_CFG="${{ steps.proj.outputs.dir }}/configs/config-${{ inputs.env }}.json"
+
+          if [ -f "$PROJ_CFG" ]; then
+            echo "Project already has $PROJ_CFG — leaving as-is."
+          else
+            jq --arg env "${{ inputs.env }}" '
+              . + { environment: $env }
+                | .tags = ((.tags // {}) + { env: $env })
+            ' "${{ steps.cat.outputs.base_cfg }}" > "$PROJ_CFG"
+            echo "Generated $PROJ_CFG from catalog template."
+          fi
+
+          SERVICE_NAME=$(jq -r '.service_name // .name' "$PROJ_CFG")
           echo "service_name=${SERVICE_NAME}" >> "$GITHUB_OUTPUT"
 
       - name: Derive slot path
         id: derive
         run: |
           NAME="${{ steps.common.outputs.company }}-${{ steps.common.outputs.project }}-${{ inputs.catalog }}-${{ steps.envcfg.outputs.service_name }}"
-          SLOT="${{ steps.common.outputs.project }}/${NAME}"
+          SLOT="${{ steps.proj.outputs.dir }}/slots/${NAME}"
           echo "name=${NAME}" >> "$GITHUB_OUTPUT"
           echo "slot=${SLOT}" >> "$GITHUB_OUTPUT"
 
-      - name: Copy catalog into slot
+      - name: Render catalog version into slot
         run: |
           rm -rf "${{ steps.derive.outputs.slot }}"
           mkdir -p "${{ steps.derive.outputs.slot }}"
-          cp -r "catalogs/${{ inputs.catalog }}/." "${{ steps.derive.outputs.slot }}/"
+          cp -r "${{ steps.cat.outputs.src }}/." "${{ steps.derive.outputs.slot }}/"
+          echo "${{ inputs.catalog }}@${{ inputs.version }}" \
+            > "${{ steps.derive.outputs.slot }}/.catalog-version"
 
       - name: Generate backend.hcl
         run: |
+          # Slot lives 4 levels deep, so its state key encodes the full
+          # project/slot/env path → unique per (project, slot, env).
           cat > "${{ steps.derive.outputs.slot }}/backend.hcl" <<EOF
           bucket         = "${{ steps.common.outputs.bucket }}"
           key            = "${{ steps.derive.outputs.slot }}/${{ inputs.env }}/terraform.tfstate"
@@ -77,69 +124,33 @@ jobs:
           encrypt        = true
           EOF
 
-      - uses: aws-actions/configure-aws-credentials@v4
-        with:
-          role-to-assume: ${{ vars.AWS_ROLE_ARN }}
-          aws-region: ${{ steps.common.outputs.region }}
-
-      - uses: hashicorp/setup-terraform@v3
-        with:
-          terraform_version: ${{ env.TF_VERSION }}
-
-      - name: terraform init
-        working-directory: ${{ steps.derive.outputs.slot }}
-        run: terraform init -backend-config=backend.hcl
-
-      - name: terraform plan
-        working-directory: ${{ steps.derive.outputs.slot }}
+      - name: Open PR
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          DESTROY_FLAG=""
-          [ "${{ inputs.action }}" = "destroy" ] && DESTROY_FLAG="-destroy"
-          terraform plan $DESTROY_FLAG \
-            -var-file="../../common-config.json" \
-            -var-file="../../config/config-${{ inputs.env }}.json" \
-            -out=tfplan
+          BRANCH="infra-request/${{ inputs.project }}/${{ inputs.catalog }}-${{ inputs.version }}-${{ inputs.env }}"
+          git config user.name  "comp-request-bot"
+          git config user.email "comp-request-bot@users.noreply.github.com"
+          git checkout -b "$BRANCH"
+          git add \
+            "${{ steps.derive.outputs.slot }}" \
+            "${{ steps.proj.outputs.dir }}/configs/config-${{ inputs.env }}.json"
 
-      - uses: actions/upload-artifact@v4
-        with:
-          name: tfplan-${{ steps.derive.outputs.name }}-${{ inputs.env }}
-          path: |
-            ${{ steps.derive.outputs.slot }}/tfplan
-            ${{ steps.derive.outputs.slot }}/backend.hcl
-          retention-days: 7
+          if git diff --staged --quiet; then
+            echo "No changes — slot was already up to date for this catalog version."
+            exit 0
+          fi
 
-  apply:
-    name: apply (${{ inputs.action }}) — needs approval
-    needs: plan
-    runs-on: ubuntu-latest
-    environment: ${{ inputs.env }}-approve
-    steps:
-      - uses: actions/checkout@v4
+          git commit -m "request: ${{ inputs.catalog }}@${{ inputs.version }} for ${{ inputs.project }}/${{ inputs.env }}"
+          git push -u origin "$BRANCH"
 
-      - name: Recreate slot from catalog
-        run: |
-          rm -rf "${{ needs.plan.outputs.slot }}"
-          mkdir -p "${{ needs.plan.outputs.slot }}"
-          cp -r "catalogs/${{ inputs.catalog }}/." "${{ needs.plan.outputs.slot }}/"
+          gh pr create \
+            --title "request: ${{ inputs.catalog }}@${{ inputs.version }} for ${{ inputs.project }}/${{ inputs.env }}" \
+            --body "Stages \`${{ steps.derive.outputs.slot }}\` from \`${{ steps.cat.outputs.src }}\`.
 
-      - uses: actions/download-artifact@v4
-        with:
-          name: tfplan-${{ needs.plan.outputs.name }}-${{ inputs.env }}
-          path: ${{ needs.plan.outputs.slot }}
-
-      - uses: aws-actions/configure-aws-credentials@v4
-        with:
-          role-to-assume: ${{ vars.AWS_ROLE_ARN }}
-          aws-region: ${{ needs.plan.outputs.region }}
-
-      - uses: hashicorp/setup-terraform@v3
-        with:
-          terraform_version: ${{ env.TF_VERSION }}
-
-      - name: terraform init
-        working-directory: ${{ needs.plan.outputs.slot }}
-        run: terraform init -backend-config=backend.hcl
-
-      - name: terraform apply (saved plan)
-        working-directory: ${{ needs.plan.outputs.slot }}
-        run: terraform apply -auto-approve tfplan
+          **After merge:** run the \`infra-provision\` workflow with
+          \`project=${{ inputs.project }}\`, \`catalog=${{ inputs.catalog }}\`,
+          \`env=${{ inputs.env }}\`, and \`action=create\` to apply." \
+            --label infra-request \
+            --base main \
+            --head "$BRANCH"

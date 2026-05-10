@@ -14,6 +14,22 @@ next catalogs). See `DEFINITION.md` for the catalog/slot pattern.
 - [ ] Terraform 1.7.5+ (`tfenv install 1.7.5`)
 - [ ] `aws`, `jq` CLIs
 
+## Config layout
+
+Two files, both committed:
+
+- `common-config.json` — values shared across **every** environment
+  and catalog (company, project, state backend coordinates).
+- `configs/config.json` — single source for catalog inputs, with a
+  `shared` block + per-env overrides under `envs.<name>`. The
+  `infra-request` workflow merges these at pipeline time and feeds
+  the result to terraform as a tfvars file. **Don't create
+  `config/config-{env}.json` files** — they're rendered ephemerally
+  into `.pipeline-tmp/` by the workflow and never committed.
+
+To add a new env: add an entry under `envs` in `configs/config.json`
+and add it to the `env` choice list in `infra-request.yml`.
+
 ## 1. Bootstrap the remote state backend (one-time, manual)
 
 The `infra-request` workflow assumes an S3 bucket + DynamoDB lock
@@ -62,15 +78,37 @@ human must approve before Terraform mutates anything.
 
 ## 4. Run your first catalog
 
-Currently the only catalog is `cat-aws-vpc`. Run it from the GitHub UI:
+Three workflows, run in order:
+
+1. **`project-init`** (once per project) — scaffolds
+   `projects/<company>-<project>/` with `common-config.json`.
+2. **`infra-request`** (once per catalog × env per project) — copies
+   a catalog version into `projects/<project>/slots/<name>/` and
+   generates `projects/<project>/configs/config-<env>.json` from the
+   catalog's template. Opens a PR. **No AWS calls.**
+3. **`infra-provision`** (every time you want to apply or destroy) —
+   takes the staged slot on `main` and runs `terraform plan` +
+   approval-gated `terraform apply`. Pass `action=create` or
+   `destroy`.
+
+Walk-through for the existing `comp-proj` project + `cat-aws-vpc`:
 
 - Actions → **infra-request** → Run workflow
+  - project: `comp-proj`
+  - catalog: `cat-aws-vpc`
+  - version: `v1.0.0`
+  - env: `nonprod`
+
+  → opens a PR adding the slot. Review the rendered config and merge.
+
+- Actions → **infra-provision** → Run workflow
+  - project: `comp-proj`
   - catalog: `cat-aws-vpc`
   - env: `nonprod`
   - action: `create`
 
-The workflow plans, uploads `tfplan` as an artifact, then waits for
-your approval before applying. Approve in the **Environments** tab.
+  → plans, uploads `tfplan`, waits for approval in the Environments
+  tab, then applies.
 
 ## 5. Add an EKS catalog (next milestone, not done yet)
 

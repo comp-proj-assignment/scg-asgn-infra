@@ -1,0 +1,165 @@
+name: infra-provision
+
+# Runs terraform create or destroy against a slot that has already been
+# staged on `main` by infra-request. Does NOT touch the catalog source —
+# uses the rendered slot as-is. Plan job uploads tfplan; apply job
+# requires environment approval and runs terraform apply.
+
+on:
+  workflow_dispatch:
+    inputs:
+      project:
+        description: 'Project folder under projects/ (e.g. comp-proj)'
+        required: true
+        type: string
+      catalog:
+        description: 'Catalog template (must match the staged slot)'
+        required: true
+        type: string
+      env:
+        description: 'Target environment'
+        required: true
+        type: choice
+        options: [nonprod, prod]
+      action:
+        description: 'create = apply, destroy = apply -destroy'
+        required: true
+        type: choice
+        options: [create, destroy]
+
+permissions:
+  id-token: write
+  contents: read
+
+env:
+  TF_VERSION: 1.7.5
+
+jobs:
+  plan:
+    name: plan (${{ inputs.action }})
+    runs-on: ubuntu-latest
+    outputs:
+      slot: ${{ steps.find.outputs.slot }}
+      name: ${{ steps.find.outputs.name }}
+      region: ${{ steps.common.outputs.region }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Locate project folder
+        id: proj
+        run: |
+          PROJECT_DIR="projects/${{ inputs.project }}"
+          if [ ! -d "$PROJECT_DIR" ]; then
+            echo "Project folder not found: $PROJECT_DIR" >&2
+            exit 1
+          fi
+          echo "dir=${PROJECT_DIR}" >> "$GITHUB_OUTPUT"
+
+      - name: Read common-config.json
+        id: common
+        run: |
+          CC="${{ steps.proj.outputs.dir }}/common-config.json"
+          {
+            echo "company=$(jq -r .company "$CC")"
+            echo "project=$(jq -r .project "$CC")"
+            echo "region=$(jq -r .remote_state.region "$CC")"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Find staged slot
+        id: find
+        run: |
+          # Slot name pattern matches infra-request: company-project-catalog-service.
+          # We don't know the service from inputs, so list slots that
+          # match the catalog and pick the only match — fail loudly if
+          # there are zero or multiple.
+          CAND=$(find "${{ steps.proj.outputs.dir }}/slots" \
+            -mindepth 1 -maxdepth 1 -type d \
+            -name "${{ steps.common.outputs.company }}-${{ steps.common.outputs.project }}-${{ inputs.catalog }}-*" \
+            2>/dev/null || true)
+          COUNT=$(printf '%s\n' "$CAND" | grep -c . || true)
+          if [ "$COUNT" -eq 0 ]; then
+            echo "No staged slot for catalog '${{ inputs.catalog }}' in project '${{ inputs.project }}'." >&2
+            echo "Run infra-request first and merge the PR." >&2
+            exit 1
+          fi
+          if [ "$COUNT" -gt 1 ]; then
+            echo "Multiple slots match — disambiguation needed:" >&2
+            printf '  %s\n' $CAND >&2
+            exit 1
+          fi
+          SLOT="$CAND"
+          NAME=$(basename "$SLOT")
+
+          PROJ_CFG="${{ steps.proj.outputs.dir }}/configs/config-${{ inputs.env }}.json"
+          if [ ! -f "$PROJ_CFG" ]; then
+            echo "Project has no $PROJ_CFG. Run infra-request for this env first." >&2
+            exit 1
+          fi
+
+          echo "slot=${SLOT}" >> "$GITHUB_OUTPUT"
+          echo "name=${NAME}" >> "$GITHUB_OUTPUT"
+          echo "proj_cfg=${PROJ_CFG}" >> "$GITHUB_OUTPUT"
+
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.AWS_ROLE_ARN }}
+          aws-region: ${{ steps.common.outputs.region }}
+
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ env.TF_VERSION }}
+
+      - name: terraform init
+        working-directory: ${{ steps.find.outputs.slot }}
+        run: terraform init -backend-config=backend.hcl
+
+      - name: terraform plan
+        working-directory: ${{ steps.find.outputs.slot }}
+        run: |
+          DESTROY_FLAG=""
+          [ "${{ inputs.action }}" = "destroy" ] && DESTROY_FLAG="-destroy"
+          # Slot is at projects/<proj>/slots/<name>/ — walk back up:
+          #   ../../             → projects/<proj>/
+          #   ../../../../       → repo root
+          terraform plan $DESTROY_FLAG \
+            -var-file="../../common-config.json" \
+            -var-file="../../configs/config-${{ inputs.env }}.json" \
+            -out=tfplan
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: tfplan-${{ steps.find.outputs.name }}-${{ inputs.env }}-${{ inputs.action }}
+          path: |
+            ${{ steps.find.outputs.slot }}/tfplan
+            ${{ steps.find.outputs.slot }}/backend.hcl
+          retention-days: 7
+
+  apply:
+    name: apply (${{ inputs.action }}) — needs approval
+    needs: plan
+    runs-on: ubuntu-latest
+    environment: ${{ inputs.env }}-approve
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: tfplan-${{ needs.plan.outputs.name }}-${{ inputs.env }}-${{ inputs.action }}
+          path: ${{ needs.plan.outputs.slot }}
+
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.AWS_ROLE_ARN }}
+          aws-region: ${{ needs.plan.outputs.region }}
+
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ env.TF_VERSION }}
+
+      - name: terraform init
+        working-directory: ${{ needs.plan.outputs.slot }}
+        run: terraform init -backend-config=backend.hcl
+
+      - name: terraform apply (saved plan)
+        working-directory: ${{ needs.plan.outputs.slot }}
+        run: terraform apply -auto-approve tfplan
