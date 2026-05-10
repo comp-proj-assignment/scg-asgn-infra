@@ -1,36 +1,45 @@
 name: infra-request
 
 # Stages a catalog version into a project slot. Does NOT touch AWS.
-# Renders projects/<project>/<slot>/ from catalogs/<catalog>/<version>/
-# and generates the per-env tfvars at <slot>/configs/config-<env>.json.
-# Opens a PR so a human can review the slot before infra-provision runs.
+# Renders projects/<project>/<catalog>-<service_name>/ from
+# catalogs/<catalog>/<version>/ and generates per-env tfvars at
+# <slot>/configs/config-<env>.json for ALL envs (env is a runtime
+# choice in infra-provision, not a request choice).
 
 on:
   workflow_dispatch:
     inputs:
       project:
-        description: 'Project folder under projects/ (e.g. comp-proj). Created by project-init.'
+        description: 'Project (folder under projects/). Add new projects via project-init.'
         required: true
-        type: string
+        type: choice
+        # Keep in sync with `ls projects/`. Add a line per project.
+        options:
+          - comp-proj
       catalog:
-        description: 'Catalog template (e.g. cat-aws-vpc)'
+        description: 'Catalog template'
         required: true
-        type: string
+        type: choice
+        # Keep in sync with `ls catalogs/`. Add a line per catalog.
+        options:
+          - cat-aws-vpc
       version:
         description: 'Catalog version folder (e.g. v1.0.0). Must exist under catalogs/<catalog>/.'
         required: true
         type: string
         default: v1.0.0
-      env:
-        description: 'Target environment (drives <slot>/configs/config-<env>.json generation)'
+      service_name:
+        description: 'Service name. Becomes the slot suffix (<catalog>-<service_name>) and the `service_name` field in generated configs.'
         required: true
-        type: choice
-        options: [nonprod, prod]
-        default: nonprod
+        type: string
+        default: demo
 
 permissions:
   contents: write
   pull-requests: write
+
+env:
+  ENVS: 'nonprod prod'   # space-separated; per-env config generated for each
 
 jobs:
   stage:
@@ -49,18 +58,6 @@ jobs:
           fi
           echo "dir=${PROJECT_DIR}" >> "$GITHUB_OUTPUT"
 
-      - name: Read common-config.json
-        id: common
-        run: |
-          CC="${{ steps.proj.outputs.dir }}/common-config.json"
-          {
-            echo "company=$(jq -r .company "$CC")"
-            echo "project=$(jq -r .project "$CC")"
-            echo "bucket=$(jq -r .remote_state.bucket "$CC")"
-            echo "region=$(jq -r .remote_state.region "$CC")"
-            echo "lock_table=$(jq -r .remote_state.lock_table "$CC")"
-          } >> "$GITHUB_OUTPUT"
-
       - name: Resolve catalog version
         id: cat
         run: |
@@ -75,17 +72,15 @@ jobs:
             echo "Catalog $SRC is missing configs/config.json" >&2
             exit 1
           fi
-          SERVICE_NAME=$(jq -r '.service_name // .name' "$BASE_CFG")
           echo "src=${SRC}" >> "$GITHUB_OUTPUT"
           echo "base_cfg=${BASE_CFG}" >> "$GITHUB_OUTPUT"
-          echo "service_name=${SERVICE_NAME}" >> "$GITHUB_OUTPUT"
 
       - name: Derive slot path
         id: derive
         run: |
-          # Slot is just the catalog name under the project folder:
-          # projects/<project>/<catalog>/. One slot per (project, catalog).
-          NAME="${{ inputs.catalog }}"
+          # projects/<project>/<catalog>-<service_name>/.
+          # One slot per (project, catalog, service_name).
+          NAME="${{ inputs.catalog }}-${{ inputs.service_name }}"
           SLOT="${{ steps.proj.outputs.dir }}/${NAME}"
           echo "name=${NAME}" >> "$GITHUB_OUTPUT"
           echo "slot=${SLOT}" >> "$GITHUB_OUTPUT"
@@ -94,8 +89,8 @@ jobs:
         run: |
           SLOT="${{ steps.derive.outputs.slot }}"
 
-          # Preserve any per-env configs from prior requests so adding
-          # a second env doesn't wipe the first one.
+          # Preserve any per-env configs from prior requests so a
+          # version bump doesn't wipe customizations.
           BACKUP=$(mktemp -d)
           if [ -d "$SLOT/configs" ]; then
             for f in "$SLOT"/configs/config-*.json; do
@@ -115,38 +110,29 @@ jobs:
           echo "${{ inputs.catalog }}@${{ inputs.version }}" \
             > "$SLOT/.catalog-version"
 
-      - name: Generate config-${{ inputs.env }}.json inside slot
+      - name: Generate per-env config files
         run: |
-          OUT="${{ steps.derive.outputs.slot }}/configs/config-${{ inputs.env }}.json"
-          jq --arg env "${{ inputs.env }}" '
-            . + { environment: $env }
-              | .tags = ((.tags // {}) + { env: $env })
-          ' "${{ steps.cat.outputs.base_cfg }}" > "$OUT"
-          echo "→ $OUT"
-
-      - name: Generate backend.hcl
-        run: |
-          # Slot lives 3 levels deep (projects/<proj>/<slot>/). State key
-          # encodes the full project/slot/env path → unique per (slot, env).
-          cat > "${{ steps.derive.outputs.slot }}/backend.hcl" <<EOF
-          bucket         = "${{ steps.common.outputs.bucket }}"
-          key            = "${{ steps.derive.outputs.slot }}/${{ inputs.env }}/terraform.tfstate"
-          region         = "${{ steps.common.outputs.region }}"
-          dynamodb_table = "${{ steps.common.outputs.lock_table }}"
-          encrypt        = true
-          EOF
+          for env in $ENVS; do
+            OUT="${{ steps.derive.outputs.slot }}/configs/config-${env}.json"
+            # Override service_name with the workflow input + inject env-aware fields.
+            jq --arg env "$env" --arg svc "${{ inputs.service_name }}" '
+              . + { environment: $env, service_name: $svc }
+                | .tags = ((.tags // {}) + { env: $env })
+            ' "${{ steps.cat.outputs.base_cfg }}" > "$OUT"
+            echo "→ $OUT"
+          done
 
       - name: Open PR
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ github.token }}
         run: |
-          BRANCH="infra-request/${{ inputs.project }}/${{ inputs.catalog }}-${{ inputs.version }}-${{ inputs.env }}"
+          BRANCH="infra-request/${{ inputs.project }}/${{ inputs.catalog }}-${{ inputs.service_name }}-${{ inputs.version }}"
           git config user.name  "comp-request-bot"
           git config user.email "comp-request-bot@users.noreply.github.com"
 
-          # See note in project-init.yml — delete any stale branch so
-          # the push is a CREATE (avoids the `workflows: write`
-          # restriction that blocks updates touching workflow files).
+          # Delete any stale branch so the push is a CREATE — pushing
+          # an UPDATE that touches workflow files is rejected for
+          # GITHUB_TOKEN (workflows: write only grantable to PAT/App).
           git push origin --delete "$BRANCH" 2>/dev/null || true
 
           git checkout -b "$BRANCH"
@@ -157,7 +143,7 @@ jobs:
             exit 0
           fi
 
-          git commit -m "request: ${{ inputs.catalog }}@${{ inputs.version }} for ${{ inputs.project }}/${{ inputs.env }}"
+          git commit -m "request: ${{ inputs.catalog }}-${{ inputs.service_name }}@${{ inputs.version }} for ${{ inputs.project }}"
           git push -u origin "$BRANCH"
 
           gh label create infra-request \
@@ -166,12 +152,14 @@ jobs:
             --force >/dev/null 2>&1 || true
 
           gh pr create \
-            --title "request: ${{ inputs.catalog }}@${{ inputs.version }} for ${{ inputs.project }}/${{ inputs.env }}" \
+            --title "request: ${{ inputs.catalog }}-${{ inputs.service_name }}@${{ inputs.version }} for ${{ inputs.project }}" \
             --body "Stages \`${{ steps.derive.outputs.slot }}\` from \`${{ steps.cat.outputs.src }}\`.
+          Per-env configs generated for: \`$ENVS\`.
 
           **After merge:** run the \`infra-provision\` workflow with
           \`project=${{ inputs.project }}\`, \`catalog=${{ inputs.catalog }}\`,
-          \`env=${{ inputs.env }}\`, and \`action=create\` to apply." \
+          \`service_name=${{ inputs.service_name }}\`, \`env=<nonprod|prod>\`,
+          and \`action=create\` to apply." \
             --label infra-request \
             --base main \
             --head "$BRANCH"

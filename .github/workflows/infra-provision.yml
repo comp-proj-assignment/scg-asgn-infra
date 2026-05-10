@@ -9,13 +9,24 @@ on:
   workflow_dispatch:
     inputs:
       project:
-        description: 'Project folder under projects/ (e.g. comp-proj)'
+        description: 'Project (folder under projects/)'
         required: true
-        type: string
+        type: choice
+        # Keep in sync with `ls projects/`.
+        options:
+          - comp-proj
       catalog:
         description: 'Catalog template (must match the staged slot)'
         required: true
+        type: choice
+        # Keep in sync with `ls catalogs/`.
+        options:
+          - cat-aws-vpc
+      service_name:
+        description: 'Service name (slot suffix used by infra-request)'
+        required: true
         type: string
+        default: demo
       env:
         description: 'Target environment'
         required: true
@@ -67,25 +78,25 @@ jobs:
             echo "lock_table=$(jq -r .remote_state.lock_table "$CC")"
           } >> "$GITHUB_OUTPUT"
 
-      - name: Find staged slot
+      - name: Locate staged slot
         id: find
         run: |
-          # Slot is at projects/<project>/<catalog>/ — direct lookup,
-          # no globbing. One slot per (project, catalog) pair.
-          SLOT="${{ steps.proj.outputs.dir }}/${{ inputs.catalog }}"
+          # Direct lookup: projects/<project>/<catalog>-<service_name>/.
+          NAME="${{ inputs.catalog }}-${{ inputs.service_name }}"
+          SLOT="${{ steps.proj.outputs.dir }}/${NAME}"
           if [ ! -d "$SLOT" ]; then
             echo "No staged slot at $SLOT." >&2
-            echo "Run infra-request for project '${{ inputs.project }}' + catalog '${{ inputs.catalog }}' first and merge the PR." >&2
+            echo "Run infra-request first with project=${{ inputs.project }}, catalog=${{ inputs.catalog }}, service_name=${{ inputs.service_name }} and merge the PR." >&2
             exit 1
           fi
           ENV_CFG="$SLOT/configs/config-${{ inputs.env }}.json"
           if [ ! -f "$ENV_CFG" ]; then
             echo "Slot is missing $ENV_CFG." >&2
-            echo "Re-run infra-request with env=${{ inputs.env }} to generate it." >&2
+            echo "Re-run infra-request to regenerate per-env configs." >&2
             exit 1
           fi
           echo "slot=${SLOT}" >> "$GITHUB_OUTPUT"
-          echo "name=${{ inputs.catalog }}" >> "$GITHUB_OUTPUT"
+          echo "name=${NAME}" >> "$GITHUB_OUTPUT"
 
       - name: Generate backend.hcl in slot
         run: |
