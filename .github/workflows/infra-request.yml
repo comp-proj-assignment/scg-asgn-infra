@@ -23,6 +23,7 @@ on:
         # Keep in sync with `ls catalogs/`. Add a line per catalog.
         options:
           - cat-aws-vpc
+          - cat-aws-eks
       version:
         description: 'Catalog version folder (e.g. v1.0.0). Must exist under catalogs/<catalog>/.'
         required: true

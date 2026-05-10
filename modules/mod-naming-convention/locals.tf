@@ -5,5 +5,6 @@ locals {
   aws_resource = {
     "aws_vpc" : "vpc"
     "aws_subnet" :"sub"
+    "aws_eks_cluster" : "eks"
   }
 }
