@@ -1,41 +1,63 @@
-# Bootstraps the Terraform remote-state backend (S3 + DynamoDB) for a
-# project. Reads projects/<PROJECT>/common-config.json — which is
-# created by the `project-init` workflow — and creates the resources
-# named there if they don't already exist.
+# Two groups of targets:
 #
-# Usage:
+#   PROJECT-scoped (need PROJECT=<folder under projects/>):
+#     bootstrap         Create S3 bucket + DynamoDB lock table for PROJECT
+#     bootstrap-show    Print the planned actions without running them
+#     teardown          Delete the backend (asks for confirmation)
+#
+#   ACCOUNT-scoped (need GH_REPO + ROLE_NAME, see docs/01_AWS_GITHUB_ACCESS.md):
+#     github-access            Set up OIDC trust + IAM role for GitHub Actions
+#     github-access-teardown   Detach + delete the IAM role
+#
+# Examples:
 #   make bootstrap PROJECT=comp-proj
-#   make bootstrap-show PROJECT=comp-proj   # dry-run: print what would happen
-#   make teardown PROJECT=comp-proj         # delete bucket + table (asks)
+#   make github-access GH_REPO=comp-proj-assignment/scg-asgn-infra ROLE_NAME=comp-proj-infra-deployer
 
 SHELL        := /bin/bash
 PROJECTS_DIR := projects
-PROJECT      ?=
 
-ifeq ($(strip $(PROJECT)),)
-  $(error PROJECT is required, e.g. `make bootstrap PROJECT=comp-proj`)
+# ── PROJECT enforcement: only required when a PROJECT-scoped target runs ──
+PROJECT_TARGETS := bootstrap bootstrap-show bootstrap-bucket bootstrap-lock-table teardown
+ifneq ($(filter $(PROJECT_TARGETS),$(MAKECMDGOALS)),)
+  ifeq ($(strip $(PROJECT)),)
+    $(error PROJECT is required, e.g. `make bootstrap PROJECT=comp-proj`)
+  endif
+
+  PROJECT_DIR := $(PROJECTS_DIR)/$(PROJECT)
+  COMMON      := $(PROJECT_DIR)/common-config.json
+
+  ifeq ($(wildcard $(COMMON)),)
+    $(error $(COMMON) not found — run the project-init workflow first and merge the PR)
+  endif
+
+  BUCKET     := $(shell jq -r .remote_state.bucket     $(COMMON))
+  LOCK_TABLE := $(shell jq -r .remote_state.lock_table $(COMMON))
+  REGION     := $(shell jq -r .remote_state.region     $(COMMON))
 endif
 
-PROJECT_DIR := $(PROJECTS_DIR)/$(PROJECT)
-COMMON      := $(PROJECT_DIR)/common-config.json
-
-ifeq ($(wildcard $(COMMON)),)
-  $(error $(COMMON) not found — run the project-init workflow first and merge the PR)
-endif
-
-BUCKET     := $(shell jq -r .remote_state.bucket     $(COMMON))
-LOCK_TABLE := $(shell jq -r .remote_state.lock_table $(COMMON))
-REGION     := $(shell jq -r .remote_state.region     $(COMMON))
-
-.PHONY: help bootstrap bootstrap-show bootstrap-bucket bootstrap-lock-table teardown
+.PHONY: help \
+        bootstrap bootstrap-show bootstrap-bucket bootstrap-lock-table teardown \
+        github-access github-access-teardown
 
 help:
-	@echo "Targets:"
-	@echo "  bootstrap         Create S3 bucket + DynamoDB lock table for PROJECT"
-	@echo "  bootstrap-show    Print the planned actions without running them"
-	@echo "  teardown          Delete the backend (asks for confirmation)"
+	@echo "PROJECT-scoped (need PROJECT=<name>):"
+	@echo "  bootstrap         Create S3 bucket + DynamoDB lock table"
+	@echo "  bootstrap-show    Dry-run: print what would happen"
+	@echo "  teardown          Delete the backend (asks)"
 	@echo ""
-	@echo "Requires: aws CLI logged in, jq, PROJECT=<folder under projects/>"
+	@echo "ACCOUNT-scoped (GitHub-AWS OIDC trust):"
+	@echo "  github-access            Set up OIDC + IAM role"
+	@echo "    GH_REPO=<owner>/<repo>"
+	@echo "    ROLE_NAME=<role>"
+	@echo "    POLICY_ARN=<arn>      (optional, default AdministratorAccess)"
+	@echo "  github-access-teardown   Detach policies + delete role"
+	@echo "    ROLE_NAME=<role>"
+	@echo ""
+	@echo "Requires: aws CLI (logged in), jq."
+	@echo ""
+	@echo "Approval gate: infra-provision uses trstringer/manual-approval@v1."
+	@echo "  Set repo variable APPROVERS='alice,bob' (comma-separated GitHub usernames)."
+	@echo "  No GitHub Environments setup needed."
 
 bootstrap-show:
 	@echo "Project:    $(PROJECT)"
@@ -93,3 +115,16 @@ teardown:
 	-aws s3 rm s3://$(BUCKET) --recursive
 	-aws s3api delete-bucket --bucket $(BUCKET) --region $(REGION)
 	-aws dynamodb delete-table --table-name $(LOCK_TABLE) --region $(REGION)
+
+# ── GitHub-AWS OIDC bootstrap ────────────────────────────────────────────
+github-access:
+	@[ -n "$(GH_REPO)" ]   || (echo "GH_REPO=<owner>/<repo> required" >&2; exit 1)
+	@[ -n "$(ROLE_NAME)" ] || (echo "ROLE_NAME=<role> required" >&2; exit 1)
+	GH_REPO="$(GH_REPO)" \
+	ROLE_NAME="$(ROLE_NAME)" \
+	POLICY_ARN="$(POLICY_ARN)" \
+	  bash tools/aws-github-access.sh
+
+github-access-teardown:
+	@[ -n "$(ROLE_NAME)" ] || (echo "ROLE_NAME=<role> required" >&2; exit 1)
+	ROLE_NAME="$(ROLE_NAME)" bash tools/aws-github-access-teardown.sh

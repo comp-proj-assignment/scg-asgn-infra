@@ -126,6 +126,25 @@ jobs:
           encrypt        = true
           EOF
 
+      - name: Verify AWS_ROLE_ARN is set
+        run: |
+          if [ -z "${{ vars.AWS_ROLE_ARN }}" ]; then
+            echo "Repo variable AWS_ROLE_ARN is empty." >&2
+            echo "Set it at: Settings → Secrets and variables → Actions → Variables tab." >&2
+            echo "Value: arn:aws:iam::<account-id>:role/<role-name> (the OIDC-assumable role)." >&2
+            exit 1
+          fi
+
+      - name: Verify APPROVERS variable is set
+        run: |
+          if [ -z "${{ vars.APPROVERS }}" ]; then
+            echo "Repo variable APPROVERS is empty." >&2
+            echo "Set it at: Settings → Secrets and variables → Actions → Variables tab." >&2
+            echo "Value: comma-separated GitHub usernames (e.g. 'alice,bob')." >&2
+            echo "These users will be tagged on the approval issue created by the apply job." >&2
+            exit 1
+          fi
+
       - uses: aws-actions/configure-aws-credentials@v4
         with:
           role-to-assume: ${{ vars.AWS_ROLE_ARN }}
@@ -167,14 +186,48 @@ jobs:
     name: apply (${{ inputs.action }}) — needs approval
     needs: plan
     runs-on: ubuntu-latest
-    environment: ${{ inputs.env }}-approve
+    permissions:
+      id-token: write
+      contents: read
+      issues: write    # manual-approval creates an issue to track approval
     steps:
+      # Pause here. Action opens an issue tagging APPROVERS; they comment
+      # "approved" / "lgtm" to proceed, or "denied" / "deny" to cancel.
+      # Times out after 60 min if no one responds.
+      - name: Wait for approval
+        uses: trstringer/manual-approval@v1
+        timeout-minutes: 60
+        with:
+          secret: ${{ github.token }}
+          approvers: ${{ vars.APPROVERS }}
+          minimum-approvals: 1
+          issue-title: "infra-provision: ${{ inputs.action }} ${{ inputs.env }} — ${{ inputs.project }}/${{ needs.plan.outputs.name }}"
+          issue-body: |
+            Approval requested for terraform **${{ inputs.action }}** in **${{ inputs.env }}**.
+
+            - Project: `${{ inputs.project }}`
+            - Slot:    `${{ needs.plan.outputs.name }}`
+            - Triggered by: @${{ github.actor }}
+            - Run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+
+            Reply on this issue with:
+            - `approved` / `approve` / `lgtm` / `yes` — to proceed
+            - `denied`   / `deny`    / `no`           — to cancel
+          exclude-workflow-initiator-as-approver: false
+
       - uses: actions/checkout@v4
 
       - uses: actions/download-artifact@v4
         with:
           name: tfplan-${{ needs.plan.outputs.name }}-${{ inputs.env }}-${{ inputs.action }}
           path: ${{ needs.plan.outputs.slot }}
+
+      - name: Verify AWS_ROLE_ARN is set
+        run: |
+          if [ -z "${{ vars.AWS_ROLE_ARN }}" ]; then
+            echo "Repo variable AWS_ROLE_ARN is empty (apply job)." >&2
+            exit 1
+          fi
 
       - uses: aws-actions/configure-aws-credentials@v4
         with:
