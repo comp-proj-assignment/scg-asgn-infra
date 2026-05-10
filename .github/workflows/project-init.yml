@@ -21,11 +21,6 @@ on:
         required: true
         type: string
         default: ap-southeast-1
-      service_name:
-        description: 'Default service_name for the first config'
-        required: true
-        type: string
-        default: demo
 
 permissions:
   contents: write

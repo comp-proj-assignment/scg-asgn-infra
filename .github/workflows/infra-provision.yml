@@ -1,9 +1,9 @@
 name: infra-provision
 
-# Runs terraform create or destroy against a slot that has already been
-# staged on `main` by infra-request. Does NOT touch the catalog source —
-# uses the rendered slot as-is. Plan job uploads tfplan; apply job
-# requires environment approval and runs terraform apply.
+# Runs terraform create or destroy against a slot already staged on
+# `main` by infra-request. Slot lives at projects/<project>/<slot>/
+# and contains config/config-<env>.json files generated up front.
+# Plan job uploads tfplan; apply job needs environment approval.
 
 on:
   workflow_dispatch:
@@ -62,23 +62,25 @@ jobs:
           {
             echo "company=$(jq -r .company "$CC")"
             echo "project=$(jq -r .project "$CC")"
+            echo "bucket=$(jq -r .remote_state.bucket "$CC")"
             echo "region=$(jq -r .remote_state.region "$CC")"
+            echo "lock_table=$(jq -r .remote_state.lock_table "$CC")"
           } >> "$GITHUB_OUTPUT"
 
       - name: Find staged slot
         id: find
         run: |
-          # Slot name pattern matches infra-request: company-project-catalog-service.
-          # We don't know the service from inputs, so list slots that
-          # match the catalog and pick the only match — fail loudly if
-          # there are zero or multiple.
-          CAND=$(find "${{ steps.proj.outputs.dir }}/slots" \
+          # Slot pattern: company-project-catalog-<service>, sitting
+          # directly under projects/<project>/. List candidates that
+          # match the requested catalog and pick the only one — fail
+          # loudly on zero or many.
+          CAND=$(find "${{ steps.proj.outputs.dir }}" \
             -mindepth 1 -maxdepth 1 -type d \
             -name "${{ steps.common.outputs.company }}-${{ steps.common.outputs.project }}-${{ inputs.catalog }}-*" \
             2>/dev/null || true)
           COUNT=$(printf '%s\n' "$CAND" | grep -c . || true)
           if [ "$COUNT" -eq 0 ]; then
-            echo "No staged slot for catalog '${{ inputs.catalog }}' in project '${{ inputs.project }}'." >&2
+            echo "No staged slot for catalog '${{ inputs.catalog }}' in '${{ inputs.project }}'." >&2
             echo "Run infra-request first and merge the PR." >&2
             exit 1
           fi
@@ -89,16 +91,25 @@ jobs:
           fi
           SLOT="$CAND"
           NAME=$(basename "$SLOT")
-
-          PROJ_CFG="${{ steps.proj.outputs.dir }}/configs/config-${{ inputs.env }}.json"
-          if [ ! -f "$PROJ_CFG" ]; then
-            echo "Project has no $PROJ_CFG. Run infra-request for this env first." >&2
+          ENV_CFG="$SLOT/config/config-${{ inputs.env }}.json"
+          if [ ! -f "$ENV_CFG" ]; then
+            echo "Slot is missing $ENV_CFG. Re-run infra-request." >&2
             exit 1
           fi
-
           echo "slot=${SLOT}" >> "$GITHUB_OUTPUT"
           echo "name=${NAME}" >> "$GITHUB_OUTPUT"
-          echo "proj_cfg=${PROJ_CFG}" >> "$GITHUB_OUTPUT"
+
+      - name: Generate backend.hcl in slot
+        run: |
+          # State key encodes project/slot/env so each (slot, env) pair
+          # gets its own state file under one project bucket.
+          cat > "${{ steps.find.outputs.slot }}/backend.hcl" <<EOF
+          bucket         = "${{ steps.common.outputs.bucket }}"
+          key            = "${{ steps.find.outputs.slot }}/${{ inputs.env }}/terraform.tfstate"
+          region         = "${{ steps.common.outputs.region }}"
+          dynamodb_table = "${{ steps.common.outputs.lock_table }}"
+          encrypt        = true
+          EOF
 
       - uses: aws-actions/configure-aws-credentials@v4
         with:
@@ -118,12 +129,15 @@ jobs:
         run: |
           DESTROY_FLAG=""
           [ "${{ inputs.action }}" = "destroy" ] && DESTROY_FLAG="-destroy"
-          # Slot is at projects/<proj>/slots/<name>/ — walk back up:
-          #   ../../             → projects/<proj>/
-          #   ../../../../       → repo root
+          # Slot is at projects/<proj>/<slot>/ (3 levels deep from
+          # repo root). Walk back up:
+          #   ../             → projects/<proj>/
+          #   ../../          → projects/
+          #   ../../../       → repo root
+          # Per-env tfvars live INSIDE the slot, no traversal needed.
           terraform plan $DESTROY_FLAG \
-            -var-file="../../common-config.json" \
-            -var-file="../../configs/config-${{ inputs.env }}.json" \
+            -var-file="../common-config.json" \
+            -var-file="config/config-${{ inputs.env }}.json" \
             -out=tfplan
 
       - uses: actions/upload-artifact@v4
