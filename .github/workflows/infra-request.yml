@@ -144,6 +144,11 @@ jobs:
           git commit -m "request: ${{ inputs.catalog }}@${{ inputs.version }} for ${{ inputs.project }}/${{ inputs.env }}"
           git push -u origin "$BRANCH"
 
+          gh label create infra-request \
+            --color 1d76db \
+            --description "Stages a catalog slot for a project" \
+            --force >/dev/null 2>&1 || true
+
           gh pr create \
             --title "request: ${{ inputs.catalog }}@${{ inputs.version }} for ${{ inputs.project }}/${{ inputs.env }}" \
             --body "Stages \`${{ steps.derive.outputs.slot }}\` from \`${{ steps.cat.outputs.src }}\`.

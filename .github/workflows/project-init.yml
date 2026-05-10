@@ -118,6 +118,13 @@ jobs:
           git commit -m "init project ${{ steps.derive.outputs.name }}"
           git push -u origin "$BRANCH"
 
+          # Idempotent label create — first run on a fresh repo would
+          # otherwise fail "label not found" inside gh pr create.
+          gh label create project-init \
+            --color 0e8a16 \
+            --description "Scaffolds a new project folder" \
+            --force >/dev/null 2>&1 || true
+
           gh pr create \
             --title "init: project ${{ steps.derive.outputs.name }}" \
             --body "Scaffold for new project \`${{ steps.derive.outputs.name }}\`.
