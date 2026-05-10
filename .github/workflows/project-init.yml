@@ -111,6 +111,16 @@ jobs:
           BRANCH="project-init/${{ steps.derive.outputs.name }}"
           git config user.name  "comp-init-bot"
           git config user.email "comp-init-bot@users.noreply.github.com"
+
+          # Delete any prior failed-attempt branch on the remote.
+          # GITHUB_TOKEN can CREATE a branch whose tree contains
+          # workflow files, but cannot UPDATE one in a way that
+          # changes workflow files (workflows: write is only grantable
+          # to a PAT/App). If a previous run left a stale branch and
+          # this workflow file has since been edited on main, the push
+          # would be rejected.
+          git push origin --delete "$BRANCH" 2>/dev/null || true
+
           git checkout -b "$BRANCH"
           git add "${{ steps.derive.outputs.dir }}"
           git commit -m "init project ${{ steps.derive.outputs.name }}"

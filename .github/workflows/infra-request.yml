@@ -131,6 +131,12 @@ jobs:
           BRANCH="infra-request/${{ inputs.project }}/${{ inputs.catalog }}-${{ inputs.version }}-${{ inputs.env }}"
           git config user.name  "comp-request-bot"
           git config user.email "comp-request-bot@users.noreply.github.com"
+
+          # See note in project-init.yml — delete any stale branch so
+          # the push is a CREATE (avoids the `workflows: write`
+          # restriction that blocks updates touching workflow files).
+          git push origin --delete "$BRANCH" 2>/dev/null || true
+
           git checkout -b "$BRANCH"
           git add \
             "${{ steps.derive.outputs.slot }}" \
