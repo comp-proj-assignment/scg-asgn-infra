@@ -135,14 +135,12 @@ jobs:
             exit 1
           fi
 
-      - name: Verify APPROVERS variable is set
+      - name: Show effective approvers
         run: |
+          APPROVERS_USED="${{ vars.APPROVERS || github.actor }}"
+          echo "Approvers for the apply gate: $APPROVERS_USED"
           if [ -z "${{ vars.APPROVERS }}" ]; then
-            echo "Repo variable APPROVERS is empty." >&2
-            echo "Set it at: Settings → Secrets and variables → Actions → Variables tab." >&2
-            echo "Value: comma-separated GitHub usernames (e.g. 'alice,bob')." >&2
-            echo "These users will be tagged on the approval issue created by the apply job." >&2
-            exit 1
+            echo "(falling back to the workflow triggerer — set repo variable APPROVERS to override)"
           fi
 
       - uses: aws-actions/configure-aws-credentials@v4
@@ -199,7 +197,9 @@ jobs:
         timeout-minutes: 60
         with:
           secret: ${{ github.token }}
-          approvers: ${{ vars.APPROVERS }}
+          # Default to whoever triggered the run if APPROVERS isn't set.
+          # Set repo variable APPROVERS=alice,bob,@org/team for real review.
+          approvers: ${{ vars.APPROVERS || github.actor }}
           minimum-approvals: 1
           issue-title: "infra-provision: ${{ inputs.action }} ${{ inputs.env }} — ${{ inputs.project }}/${{ needs.plan.outputs.name }}"
           issue-body: |

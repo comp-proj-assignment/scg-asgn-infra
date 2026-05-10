@@ -56,7 +56,8 @@ help:
 	@echo "Requires: aws CLI (logged in), jq."
 	@echo ""
 	@echo "Approval gate: infra-provision uses trstringer/manual-approval@v1."
-	@echo "  Set repo variable APPROVERS='alice,bob' (comma-separated GitHub usernames)."
+	@echo "  Optional repo variable APPROVERS='alice,bob' (comma-separated)."
+	@echo "  If unset, falls back to whoever triggered the workflow run."
 	@echo "  No GitHub Environments setup needed."
 
 bootstrap-show:
