@@ -1,0 +1,64 @@
+{
+  "environment": "prod",
+  "service_name": "platform",
+  "suffix": "",
+  "kubernetes_version": "1.35",
+  "vpc_id": "vpc-08e6f04c6bfd6013e",
+  "subnet_ids": [
+    "subnet-04ecb341215cfcb4d",
+    "subnet-0d98c1c129bf32140",
+    "subnet-067281095c5a59633"
+  ],
+  "addons": {
+    "coredns": {
+      "most_recent": true
+    },
+    "eks-pod-identity-agent": {
+      "most_recent": true,
+      "before_compute": true
+    },
+    "kube-proxy": {
+      "most_recent": true
+    },
+    "vpc-cni": {
+      "most_recent": true,
+      "before_compute": true
+    }
+  },
+  "enable_irsa": true,
+  "cluster_endpoint_public_access": true,
+  "cluster_endpoint_private_access": true,
+  "_eks_managed_node_groups": {
+    "facilities": {
+      "min_size": 2,
+      "max_size": 5,
+      "desired_size": 2,
+      "instance_types": [
+        "t3.large"
+      ],
+      "capacity_type": "SPOT",
+      "labels": {
+        "company": "comp",
+        "project": "mandatory",
+        "nodegroup": "facilities"
+      }
+    },
+    "compprojnp": {
+      "min_size": 2,
+      "max_size": 5,
+      "desired_size": 2,
+      "instance_types": [
+        "t3.large"
+      ],
+      "capacity_type": "SPOT",
+      "labels": {
+        "company": "comp",
+        "project": "proj",
+        "nodegroup": "np"
+      }
+    }
+  },
+  "tags": {
+    "env": "prod"
+  }
+}
