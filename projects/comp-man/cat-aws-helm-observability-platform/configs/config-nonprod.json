@@ -1,5 +1,5 @@
 {
-  "environment": "nonprod",
+  "environment": "np",
   "service_name": "plt",
   "cluster_name" : "comp-man-eks-platform-np",
   "namespace": "platform-system",
