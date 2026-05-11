@@ -1,6 +1,6 @@
 {
   "environment": "prod",
-  "service_name": "platform",
+  "service_name": "plt",
   "namespace": "platform-system",
   "enable_loki": true,
   "enable_fluent_bit": true,

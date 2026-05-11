@@ -1,10 +1,11 @@
 {
   "environment": "nonprod",
-  "service_name": "platform",
+  "service_name": "plt",
+  "cluster_name" : "comp-man-eks-platform-np",
   "namespace": "platform-system",
   "enable_loki": true,
-  "enable_fluent_bit": true,
-  "enable_kube_prometheus_stack": true,
+  "enable_fluent_bit": false,
+  "enable_kube_prometheus_stack": false,
   "tags": {
     "env": "nonprod"
   }
