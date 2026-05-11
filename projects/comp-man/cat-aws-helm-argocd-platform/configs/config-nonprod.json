@@ -3,6 +3,7 @@
   "service_name": "plt",
   "suffix": "",
   "enable_argocd": true,
+  "cluster_name" : "comp-man-eks-platform-np",
   "namespace": "platform-system",
   "argocd_chart_version": "7.7.0",
   "argocd_domain": "argocd.local",
