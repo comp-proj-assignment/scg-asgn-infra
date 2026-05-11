@@ -5,9 +5,9 @@
   "kubernetes_version": "1.35",
   "vpc_id": "vpc-00f051152236e468f",
   "subnet_ids": [
-    "subnet-04ecb341215cfcb4d",
-    "subnet-0d98c1c129bf32140",
-    "subnet-067281095c5a59633"
+    "subnet-00f0ee0466d46f7f2",
+    "subnet-003602224a42c9b54",
+    "subnet-02db28380dfe438ff"
   ],
   "addons": {
     "coredns": {
