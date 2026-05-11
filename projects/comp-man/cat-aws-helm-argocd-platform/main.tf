@@ -2,21 +2,6 @@
 #   - argo-cd (the GitOps control plane)
 #   - argo-rollouts (progressive delivery controller)
 # Each gated by an enable_* flag, each in its own namespace by convention.
-
-resource "kubernetes_namespace_v1" "argocd" {
-  count = var.enable_argocd ? 1 : 0
-  metadata {
-    name = var.argocd_namespace
-  }
-}
-
-resource "kubernetes_namespace_v1" "argo_rollouts" {
-  count = var.enable_argo_rollouts ? 1 : 0
-  metadata {
-    name = var.argo_rollouts_namespace
-  }
-}
-
 # ── argocd ───────────────────────────────────────────────────────────────
 resource "helm_release" "argocd" {
   count = var.enable_argocd ? 1 : 0

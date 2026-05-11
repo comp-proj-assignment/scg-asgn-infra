@@ -15,8 +15,8 @@ controller:
       memory: 256Mi
 
   nodeSelector:
-    company: ${company}
-    project: ${project}
+    company: comp
+    project: mandatory
 
   metrics:
     enabled: true                # /metrics endpoint
@@ -36,5 +36,5 @@ dashboard:
     limits:
       memory: 128Mi
   nodeSelector:
-    company: ${company}
-    project: ${project}
+    company: comp
+    project: mandatory

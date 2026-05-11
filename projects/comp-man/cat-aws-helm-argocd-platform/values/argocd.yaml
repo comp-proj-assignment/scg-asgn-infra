@@ -11,8 +11,8 @@ global:
   # Run on the team's nodegroup if those labels exist; harmless otherwise
   # (pods just go to any schedulable node when no node matches).
   nodeSelector:
-    company: ${company}
-    project: ${project}
+    company: comp
+    project: mandatory
 
 configs:
   params:
