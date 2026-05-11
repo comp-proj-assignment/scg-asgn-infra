@@ -44,7 +44,7 @@ variable "enable_argocd" {
   default = true
 }
 
-variable "argocd_namespace" {
+variable "namespace" {
   type    = string
   default = "argocd"
 }
@@ -66,11 +66,6 @@ variable "argocd_domain" {
 variable "enable_argo_rollouts" {
   type    = bool
   default = true
-}
-
-variable "argo_rollouts_namespace" {
-  type    = string
-  default = "argo-rollouts"
 }
 
 variable "argo_rollouts_chart_version" {

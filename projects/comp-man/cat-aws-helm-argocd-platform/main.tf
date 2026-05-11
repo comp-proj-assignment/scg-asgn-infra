@@ -7,7 +7,7 @@ resource "helm_release" "argocd" {
   count = var.enable_argocd ? 1 : 0
 
   name             = "${var.company}-${var.project}-argocd-${var.service_name}-${var.environment}"
-  namespace        = kubernetes_namespace_v1.argocd[0].metadata[0].name
+  namespace        = var.namespace
   create_namespace = false
   repository       = "https://argoproj.github.io/argo-helm"
   chart            = "argo-cd"
@@ -27,7 +27,7 @@ resource "helm_release" "argo_rollouts" {
   count = var.enable_argo_rollouts ? 1 : 0
 
   name             = "${var.company}-${var.project}-rollouts-${var.service_name}-${var.environment}"
-  namespace        = kubernetes_namespace_v1.argo_rollouts[0].metadata[0].name
+  namespace        = var.namespace
   create_namespace = false
   repository       = "https://argoproj.github.io/argo-helm"
   chart            = "argo-rollouts"
