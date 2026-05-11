@@ -1,0 +1,122 @@
+fullnameOverride: kube-prom
+
+prometheus:
+  prometheusSpec:
+    retention: 7d           
+    retentionSize: 8GB
+    serviceMonitorSelectorNilUsesHelmValues: false
+    podMonitorSelectorNilUsesHelmValues: false
+    ruleSelectorNilUsesHelmValues: false
+
+    storageSpec:
+      volumeClaimTemplate:
+        spec:
+          accessModes: ["ReadWriteOnce"]
+          resources:
+            requests:
+              storage: 10Gi
+
+    resources:
+      requests:
+        cpu: 200m
+        memory: 1Gi
+      limits:
+        memory: 2Gi
+
+    nodeSelector:
+      company: comp
+      project: mandatory
+      nodegroup: facilities
+
+  service:
+    type: ClusterIP
+
+alertmanager:
+  alertmanagerSpec:
+    replicas: 1
+    resources:
+      requests:
+        cpu: 50m
+        memory: 128Mi
+      limits:
+        memory: 256Mi
+    nodeSelector:
+      company: comp
+      project: mandatory
+      nodegroup: facilities
+
+grafana:
+  # Credentials sourced from a k8s Secret named `grafana-admin` in the
+  # release namespace. Terraform (main.tf) creates the secret with a
+  # random password and never writes it to git. Pull the password with:
+  #   kubectl -n observability get secret grafana-admin \
+  #     -o jsonpath='{.data.admin-password}' | base64 -d ; echo
+  admin:
+    existingSecret: grafana-admin
+    userKey:     admin-user
+    passwordKey: admin-password
+
+  defaultDashboardsTimezone: UTC
+
+  nodeSelector:
+    company: comp
+    project: mandatory
+    nodegroup: facilities
+
+  service:
+    type: ClusterIP
+
+  persistence:
+    enabled: true
+    size: 2Gi
+
+  # Pre-provision useful dashboards by Grafana ID
+  dashboardProviders:
+    dashboardproviders.yaml:
+      apiVersion: 1
+      providers:
+        - name: default
+          orgId: 1
+          folder: ""
+          type: file
+          disableDeletion: false
+          editable: true
+          options:
+            path: /var/lib/grafana/dashboards/default
+
+  dashboards:
+    default:
+      jvm-micrometer:
+        gnetId: 4701
+        revision: 9
+        datasource: Prometheus
+      spring-boot:
+        gnetId: 11378
+        revision: 5
+        datasource: Prometheus
+      k8s-cluster:
+        gnetId: 7249
+        revision: 1
+        datasource: Prometheus
+
+# kube-state-metrics + node-exporter come bundled and on by default — keep them
+nodeExporter:
+  enabled: true
+  # node-exporter is a DaemonSet — pin to facilities nodes only so we don't
+  # collect metrics from nodes outside this team's footprint.
+
+kubeStateMetrics:
+  enabled: true
+
+kube-state-metrics:
+  nodeSelector:
+    company: comp
+    project: mandatory
+    nodegroup: facilities
+
+# Operator that manages Prometheus + Alertmanager CRDs
+prometheusOperator:
+  nodeSelector:
+    company: comp
+    project: mandatory
+    nodegroup: facilities

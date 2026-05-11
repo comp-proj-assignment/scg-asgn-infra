@@ -81,15 +81,19 @@ human must approve before Terraform mutates anything.
 Three workflows, run in order:
 
 1. **`project-init`** (once per project) — scaffolds
-   `projects/<company>-<project>/` with `common-config.json`.
-2. **`infra-request`** (once per catalog × env per project) — copies
-   a catalog version into `projects/<project>/slots/<name>/` and
-   generates `projects/<project>/configs/config-<env>.json` from the
-   catalog's template. Opens a PR. **No AWS calls.**
+   `projects/<company>-<project>/` with `common-config.json` and a
+   project README.
+2. **`infra-request`** (once per catalog instance, per project) — copies
+   a catalog version into `projects/<project>/<catalog>-<service_name>/`
+   and generates per-env tfvars inside it at
+   `configs/config-nonprod.json` and `configs/config-prod.json`
+   (both env files written in one go, from the catalog's
+   `configs/config.json` template). Opens a PR. **No AWS calls.**
 3. **`infra-provision`** (every time you want to apply or destroy) —
-   takes the staged slot on `main` and runs `terraform plan` +
-   approval-gated `terraform apply`. Pass `action=create` or
-   `destroy`.
+   takes the staged slot on `main`, picks an env at run time, plans,
+   pauses for manual approval (issue created by
+   `trstringer/manual-approval`), then applies. Pass `action=create`
+   or `destroy`.
 
 Walk-through for the existing `comp-proj` project + `cat-aws-vpc`:
 
@@ -97,15 +101,19 @@ Walk-through for the existing `comp-proj` project + `cat-aws-vpc`:
   - project: `comp-proj`
   - catalog: `cat-aws-vpc`
   - version: `v1.0.0`
-  - env: `nonprod`
+  - service_name: `demo`
 
-  → opens a PR adding the slot. Review the rendered config and merge.
+  → opens a PR adding `projects/comp-proj/cat-aws-vpc-demo/` with
+  both `configs/config-nonprod.json` and `configs/config-prod.json`.
+  Review and merge.
 
 - Actions → **infra-provision** → Run workflow
   - project: `comp-proj`
-  - catalog: `cat-aws-vpc`
+  - slot: (leave blank to auto-detect, or `cat-aws-vpc-demo`)
   - env: `nonprod`
   - action: `create`
+
+  → comment `approved` on the issue the workflow opens. Apply runs.
 
   → plans, uploads `tfplan`, waits for approval in the Environments
   tab, then applies.

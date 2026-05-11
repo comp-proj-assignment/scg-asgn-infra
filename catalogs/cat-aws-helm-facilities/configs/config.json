@@ -1,5 +1,0 @@
-{
-  "service_name": "man",
-  "enable_nginx_ingress": true,
-  "enable_cert_manager" : true,
-}
