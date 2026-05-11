@@ -1,7 +1,7 @@
 module "vpc" {
   # Path is relative to the slot the pipeline renders this into:
   # projects/<proj>/slots/<name>/ → ../../../../modules/mod-aws-vpc/v1.0.0
-  source = "../../../../modules/mod-aws-vpc/v1.0.0"
+  source = "../../../template/modules/mod-aws-vpc/v1.0.0"
 
   # Naming inputs (read by mod-aws-vpc/locals.tf via mod-naming-convention).
   company     = var.company

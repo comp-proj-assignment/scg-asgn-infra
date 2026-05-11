@@ -1,7 +1,7 @@
 module "eks" {
   # Path is relative to the slot the pipeline renders this into:
   # projects/<proj>/<slot>/ → ../../../modules/mod-aws-eks/v1.0.0/terraform-aws-eks
-  source = "../../../modules/mod-aws-eks/v1.0.0/terraform-aws-eks"
+  source = "../../../template/modules/mod-aws-eks/v1.0.0/terraform-aws-eks"
 
   # Naming inputs (read by mod-aws-eks/locals.tf via mod-naming-convention,
   # and passed down to submodules like eks-managed-node-group).

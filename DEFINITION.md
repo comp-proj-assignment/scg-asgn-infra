@@ -9,7 +9,7 @@ monitoring stack).
 ```
 comp-proj-infra/
 ├── terraform/
-│   ├── modules/                      # Reusable Terraform modules
+│   ├── template/modules/                      # Reusable Terraform modules
 │   │   ├── eks-cluster/
 │   │   ├── rds-postgres/
 │   │   ├── elasticache-redis/
@@ -216,7 +216,7 @@ kubectl get pods -n argocd
 | Application config | 15 min | 0 (in Git) |
 | Secrets | 30 min | 0 (Vault) |
 
-See `docs/DISASTER_RECOVERY.md` for detailed runbooks.
+See `template/docs/DISASTER_RECOVERY.md` for detailed runbooks.
 
 ## Cost Optimization
 
@@ -272,9 +272,9 @@ When a new service joins the platform:
 3. Add RBAC (ServiceAccount + Role)
 4. Add Argo CD ApplicationSet entry
 5. Provision RDS/Redis if needed
-6. Document in `docs/services/<service-name>.md`
+6. Document in `template/docs/services/<service-name>.md`
 
-See `docs/ONBOARDING.md` for full checklist.
+See `template/docs/ONBOARDING.md` for full checklist.
 
 ## Standards
 

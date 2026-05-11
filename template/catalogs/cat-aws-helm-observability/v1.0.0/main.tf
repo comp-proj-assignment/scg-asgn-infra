@@ -71,7 +71,7 @@ resource "helm_release" "kube_prometheus_stack" {
 
 module "loki_bucket" {
   count  = var.enable_loki ? 1 : 0
-  source = "../../modules/mod-aws-s3/v1.0.0"
+  source = "../../../template/modules/mod-aws-s3/v1.0.0"
 
   bucket = "${var.company}-${var.project}-loki-${data.aws_caller_identity.current.account_id}"
 
@@ -92,7 +92,7 @@ module "loki_bucket" {
 
 module "loki_irsa" {
   count  = var.enable_loki ? 1 : 0
-  source = "../../modules/mod-aws-iam-role/v1.0.0/modules/iam-role-for-service-accounts"
+  source = "../../../template/modules/mod-aws-iam-role/v1.0.0/modules/iam-role-for-service-accounts"
 
   name        = "${var.company}-${var.project}-s3-${var.service_name}-${var.environment}-loki"
   policy_name = "loki-s3"

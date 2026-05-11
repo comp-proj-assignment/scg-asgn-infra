@@ -46,11 +46,6 @@ alertmanager:
       nodegroup: facilities
 
 grafana:
-  # Credentials sourced from a k8s Secret named `grafana-admin` in the
-  # release namespace. Terraform (main.tf) creates the secret with a
-  # random password and never writes it to git. Pull the password with:
-  #   kubectl -n observability get secret grafana-admin \
-  #     -o jsonpath='{.data.admin-password}' | base64 -d ; echo
   admin:
     existingSecret: grafana-admin
     userKey:     admin-user
@@ -70,7 +65,6 @@ grafana:
     enabled: true
     size: 2Gi
 
-  # Pre-provision useful dashboards by Grafana ID
   dashboardProviders:
     dashboardproviders.yaml:
       apiVersion: 1

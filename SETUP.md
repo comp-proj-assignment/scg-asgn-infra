@@ -121,7 +121,7 @@ Walk-through for the existing `comp-proj` project + `cat-aws-vpc`:
 ## 5. Add an EKS catalog (next milestone, not done yet)
 
 The deploy repo expects an EKS cluster. Until a `cat-aws-eks` catalog
-exists in `catalogs/`, you'll need to create the cluster manually
+exists in `template/catalogs/`, you'll need to create the cluster manually
 (`eksctl create cluster …`) and capture its kubeconfig.
 
 When `cat-aws-eks` lands, also set up:

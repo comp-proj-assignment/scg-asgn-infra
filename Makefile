@@ -5,7 +5,7 @@
 #     bootstrap-show    Print the planned actions without running them
 #     teardown          Delete the backend (asks for confirmation)
 #
-#   ACCOUNT-scoped (need GH_REPO + ROLE_NAME, see docs/01_AWS_GITHUB_ACCESS.md):
+#   ACCOUNT-scoped (need GH_REPO + ROLE_NAME, see template/docs/01_AWS_GITHUB_ACCESS.md):
 #     github-access            Set up OIDC trust + IAM role for GitHub Actions
 #     github-access-teardown   Detach + delete the IAM role
 #
@@ -124,8 +124,8 @@ github-access:
 	GH_REPO="$(GH_REPO)" \
 	ROLE_NAME="$(ROLE_NAME)" \
 	POLICY_ARN="$(POLICY_ARN)" \
-	  bash tools/aws-github-access.sh
+	  bash template/tools/aws-github-access.sh
 
 github-access-teardown:
 	@[ -n "$(ROLE_NAME)" ] || (echo "ROLE_NAME=<role> required" >&2; exit 1)
-	ROLE_NAME="$(ROLE_NAME)" bash tools/aws-github-access-teardown.sh
+	ROLE_NAME="$(ROLE_NAME)" bash template/tools/aws-github-access-teardown.sh

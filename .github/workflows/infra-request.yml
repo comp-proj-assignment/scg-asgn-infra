@@ -2,7 +2,7 @@ name: infra-request
 
 # Stages a catalog version into a project slot. Does NOT touch AWS.
 # Renders projects/<project>/<catalog>-<service_name>/ from
-# catalogs/<catalog>/<version>/ and generates per-env tfvars at
+# template/catalogs/<catalog>/<version>/ and generates per-env tfvars at
 # <slot>/configs/config-<env>.json for ALL envs (env is a runtime
 # choice in infra-provision, not a request choice).
 
@@ -21,12 +21,12 @@ on:
         description: 'Catalog template'
         required: true
         type: choice
-        # Keep in sync with `ls catalogs/`. Add a line per catalog.
+        # Keep in sync with `ls template/catalogs/`. Add a line per catalog.
         options:
           - cat-aws-vpc
           - cat-aws-eks
       version:
-        description: 'Catalog version folder (e.g. v1.0.0). Must exist under catalogs/<catalog>/.'
+        description: 'Catalog version folder (e.g. v1.0.0). Must exist under template/catalogs/<catalog>/.'
         required: true
         type: string
         default: v1.0.0
@@ -63,11 +63,11 @@ jobs:
       - name: Resolve catalog version
         id: cat
         run: |
-          SRC="catalogs/${{ inputs.catalog }}/${{ inputs.version }}"
+          SRC="template/catalogs/${{ inputs.catalog }}/${{ inputs.version }}"
           BASE_CFG="$SRC/configs/config.json"
           if [ ! -d "$SRC" ]; then
             echo "Catalog version not found: $SRC" >&2
-            ls "catalogs/${{ inputs.catalog }}/" >&2 || true
+            ls "template/catalogs/${{ inputs.catalog }}/" >&2 || true
             exit 1
           fi
           if [ ! -f "$BASE_CFG" ]; then

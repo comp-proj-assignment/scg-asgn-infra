@@ -13,7 +13,7 @@ projects/comp-proj/
 └── <catalog>-<service_name>/       # one folder per requested catalog instance
     │                                  e.g. cat-aws-vpc-demo, cat-aws-eks-platform
     ├── main.tf, variables.tf, …    # catalog code, copied verbatim from
-    │                                  catalogs/<catalog>/<version>/
+    │                                  template/catalogs/<catalog>/<version>/
     ├── .catalog-version            # which catalog@version was rendered
     ├── backend.hcl                 # generated at provision time
     └── configs/
@@ -63,5 +63,5 @@ Re-running is safe — both checks skip if the resources exist.
 - **Edit env config:** open the slot's `configs/config-<env>.json` in
   a PR. Pipeline re-applies on next provision.
 
-See the top-level `SETUP.md` and `docs/01_AWS_GITHUB_ACCESS.md` for
+See the top-level `SETUP.md` and `template/docs/01_AWS_GITHUB_ACCESS.md` for
 one-time AWS/GitHub setup.

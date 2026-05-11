@@ -13,7 +13,7 @@ projects/comp-man/
 └── <catalog>-<service_name>/       # one folder per requested catalog instance
     │                                  e.g. cat-aws-vpc-demo, cat-aws-eks-platform
     ├── main.tf, variables.tf, …    # catalog code, copied from
-    │                                  catalogs/<catalog>/<version>/
+    │                                  template/catalogs/<catalog>/<version>/
     ├── .catalog-version            # which catalog@version was rendered
     ├── backend.hcl                 # generated at provision time
     └── configs/
@@ -49,5 +49,5 @@ That reads `common-config.json` and creates:
 
 Re-running is safe — both checks skip if the resources exist.
 
-See the top-level `SETUP.md` and `docs/01_AWS_GITHUB_ACCESS.md` for
+See the top-level `SETUP.md` and `template/docs/01_AWS_GITHUB_ACCESS.md` for
 one-time AWS/GitHub setup.
