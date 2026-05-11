@@ -50,9 +50,21 @@ variable "public_subnets" {
   default = []
 }
 
+variable "public_subnet_suffix" {
+  description = "Suffix to append to public subnets name"
+  type        = string
+  default     = "public"
+}
+
 variable "private_subnets" {
   type    = list(string)
   default = []
+}
+
+variable "private_subnet_suffix" {
+  description = "Suffix to append to private subnets name"
+  type        = string
+  default     = "private"
 }
 
 variable "enable_nat_gateway" {
