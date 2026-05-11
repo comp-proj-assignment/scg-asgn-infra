@@ -1,0 +1,11 @@
+{
+  "environment": "nonprod",
+  "service_name": "platform",
+  "namespace": "platform-system",
+  "enable_loki": true,
+  "enable_fluent_bit": true,
+  "enable_kube_prometheus_stack": true,
+  "tags": {
+    "env": "nonprod"
+  }
+}
