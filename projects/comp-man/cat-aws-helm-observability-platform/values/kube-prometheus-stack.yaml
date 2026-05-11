@@ -76,6 +76,7 @@ grafana:
 
   persistence:
     enabled: true
+    storageClass: gp2
     size: 2Gi
 
   dashboardProviders:
