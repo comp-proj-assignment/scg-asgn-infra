@@ -13,6 +13,6 @@ module "eks" {
   endpoint_public_access  = var.cluster_endpoint_public_access
   endpoint_private_access = var.cluster_endpoint_private_access
   eks_managed_node_groups = var.eks_managed_node_groups
-
-  tags = var.tags
+  addons                  = var.addons
+  tags                    = var.tags
 }
