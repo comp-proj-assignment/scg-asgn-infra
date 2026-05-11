@@ -67,6 +67,9 @@ resource "helm_release" "kube_prometheus_stack" {
   repository       = "https://prometheus-community.github.io/helm-charts"
   chart            = "kube-prometheus-stack"
   version          = var.kube_prometheus_stack_chart_version
+  replace          = true
+  force_update     = true
+  cleanup_on_fail  = true
   values = [
     templatefile("./values/kube-prometheus-stack.yaml", {
       enable_loki = var.enable_loki
