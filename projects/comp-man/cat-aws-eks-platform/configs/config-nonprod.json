@@ -28,9 +28,9 @@
   "enable_irsa": true,
   "cluster_endpoint_public_access": true,
   "cluster_endpoint_private_access": true,
-  "_eks_managed_node_groups": {
+  "eks_managed_node_groups": {
     "facilities": {
-      "min_size": 2,
+      "min_size": 0,
       "max_size": 5,
       "desired_size": 2,
       "instance_types": [
@@ -44,7 +44,7 @@
       }
     },
     "compprojnp": {
-      "min_size": 2,
+      "min_size": 0,
       "max_size": 5,
       "desired_size": 2,
       "instance_types": [
