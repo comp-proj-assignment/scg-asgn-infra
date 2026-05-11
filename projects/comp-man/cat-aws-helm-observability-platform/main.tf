@@ -34,14 +34,6 @@ resource "helm_release" "fluent_bit" {
 }
 
 # ── kube-prometheus-stack ────────────────────────────────────────────────
-resource "kubernetes_namespace_v1" "observability" {
-  count = var.enable_kube_prometheus_stack ? 1 : 0
-
-  metadata {
-    name = var.namespace
-  }
-}
-
 resource "random_password" "grafana_admin" {
   count = var.enable_kube_prometheus_stack ? 1 : 0
 
