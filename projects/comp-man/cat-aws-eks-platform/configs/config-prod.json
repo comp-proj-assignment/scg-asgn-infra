@@ -73,7 +73,18 @@
   "enable_cluster_creator_admin_permissions": true,
   "access_entries": {
     "console-admin": {
-      "principal_arn": "arn:aws:iam::340741165554:user/REPLACE_WITH_YOUR_IAM_USER",
+      "principal_arn": "arn:aws:iam::340741165554:root",
+      "policy_associations": {
+        "cluster_admin": {
+          "policy_arn": "arn:aws:eks::aws:cluster-access-policy/AmazonEKSClusterAdminPolicy",
+          "access_scope": {
+            "type": "cluster"
+          }
+        }
+      }
+    },
+    "admin-user": {
+      "principal_arn": "arn:aws:iam::340741165554:user/REPLACE_WITH_YOUR_IAM_USERNAME",
       "policy_associations": {
         "cluster_admin": {
           "policy_arn": "arn:aws:eks::aws:cluster-access-policy/AmazonEKSClusterAdminPolicy",
