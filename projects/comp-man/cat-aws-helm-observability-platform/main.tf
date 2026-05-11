@@ -146,6 +146,9 @@ resource "helm_release" "loki" {
   repository       = "https://grafana.github.io/helm-charts"
   chart            = "loki"
   version          = var.loki_chart_version
+  replace          = true
+  force_update     = true
+  cleanup_on_fail  = true
 
   values = [
     templatefile("./values/loki.yaml", {
