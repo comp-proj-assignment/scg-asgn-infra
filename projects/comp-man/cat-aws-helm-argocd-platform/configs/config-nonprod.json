@@ -1,6 +1,6 @@
 {
-  "environment": "nonprod",
-  "service_name": "platform",
+  "environment": "np",
+  "service_name": "plt",
   "suffix": "",
   "enable_argocd": true,
   "namespace": "platform-system",
