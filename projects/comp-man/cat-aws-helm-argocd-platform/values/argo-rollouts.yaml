@@ -17,6 +17,7 @@ controller:
   nodeSelector:
     company: comp
     project: mandatory
+    nodegroup: facilites
 
   metrics:
     enabled: true                # /metrics endpoint
@@ -38,3 +39,4 @@ dashboard:
   nodeSelector:
     company: comp
     project: mandatory
+    nodegroup: facilites
