@@ -4,7 +4,9 @@ locals {
   # only ever look up `module.naming.aws_resource["<key>"].<field>`.
   aws_resource = {
     "aws_vpc" : "vpc"
-    "aws_subnet" :"sub"
+    "aws_subnet" : "sub"
+    "aws_eks" : "eks"
     "aws_eks_cluster" : "eks"
+    "aws_eks_node_group" : "ng"
   }
 }
