@@ -1,6 +1,6 @@
 {
   "environment": "np",
-  "service_name": "demo",
+  "service_name": "platform",
   "suffix": "",
   "cidr": "10.0.0.0/16",
   "azs": [

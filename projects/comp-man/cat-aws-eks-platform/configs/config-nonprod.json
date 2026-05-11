@@ -1,5 +1,5 @@
 {
-  "environment": "nonprod",
+  "environment": "np",
   "service_name": "platform",
   "suffix": "",
   "kubernetes_version": "1.35",
