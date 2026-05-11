@@ -1,8 +1,3 @@
-# nodeSelector:
-#   company: company
-#   project: mandatory
-#   nodegroup: facilities
-
 resources:
   requests:
     cpu: 50m
@@ -53,7 +48,7 @@ config:
     [OUTPUT]
         Name              loki
         Match             *
-        host              loki.logging.svc.cluster.local
+        host              ${loki_host}
         port              3100
         line_format       json
         auto_kubernetes_labels on

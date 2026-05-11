@@ -26,6 +26,7 @@ on:
           - cat-aws-vpc
           - cat-aws-eks
           - cat-aws-helm-observability
+          - cat-aws-helm-argocd
       version:
         description: 'Catalog version folder (e.g. v1.0.0). Must exist under template/catalogs/<catalog>/.'
         required: true

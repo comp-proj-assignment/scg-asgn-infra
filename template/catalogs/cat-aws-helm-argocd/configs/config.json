@@ -1,9 +1,0 @@
-{
-  "service_name": "demo",
-  "enable_argocd": true,
-  "argocd" : {
-
-  },
-  "enable_argocd_rollout" : true,
-  "arfocd_rollout" : {}
-}

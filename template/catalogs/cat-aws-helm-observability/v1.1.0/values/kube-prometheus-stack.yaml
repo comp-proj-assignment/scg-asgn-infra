@@ -1,5 +1,3 @@
-fullnameOverride: kube-prom
-
 prometheus:
   prometheusSpec:
     retention: 7d           
@@ -53,6 +51,21 @@ grafana:
 
   defaultDashboardsTimezone: UTC
 
+%{ if enable_loki ~}
+  additionalDataSources:
+    - name: Loki
+      type: loki
+      access: proxy
+      url: ${loki_url}
+      isDefault: false
+      editable: false
+      jsonData:
+        derivedFields:
+          - name: TraceID
+            matcherRegex: 'trace[_-]?id=(\w+)'
+            url: '$${__value.raw}'
+%{ endif ~}
+
   nodeSelector:
     company: comp
     project: mandatory
@@ -63,6 +76,7 @@ grafana:
 
   persistence:
     enabled: true
+    storageClass: gp2
     size: 2Gi
 
   dashboardProviders:
