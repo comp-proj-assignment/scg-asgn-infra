@@ -1,0 +1,19 @@
+serviceAccount:
+  create: true
+  name: aws-load-balancer-controller
+
+replicaCount: 2
+
+resources:
+  requests:
+    cpu: 100m
+    memory: 128Mi
+  limits:
+    memory: 256Mi
+
+nodeSelector:
+  company: comp
+  project: mandatory
+  nodegroup: facilities
+
+defaultLoadBalancerClass: service.k8s.aws/nlb

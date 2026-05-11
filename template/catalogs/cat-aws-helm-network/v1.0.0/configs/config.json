@@ -1,5 +1,6 @@
 {
   "service_name": "man",
+  "enable_aws_lb_controller" : true,
   "enable_nginx_ingress": true,
   "enable_cert_manager" : true
 }

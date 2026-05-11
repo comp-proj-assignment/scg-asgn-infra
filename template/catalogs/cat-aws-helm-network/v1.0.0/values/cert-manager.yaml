@@ -1,0 +1,49 @@
+crds:
+  enabled: true
+  keep: true
+
+replicaCount: 2
+
+resources:
+  requests:
+    cpu: 50m
+    memory: 64Mi
+  limits:
+    memory: 128Mi
+
+nodeSelector:
+  company: comp
+  project: mandatory
+  nodegroup: facilities
+
+webhook:
+  replicaCount: 2
+  resources:
+    requests:
+      cpu: 50m
+      memory: 64Mi
+    limits:
+      memory: 128Mi
+  nodeSelector:
+    company: comp
+    project: mandatory
+    nodegroup: facilities
+
+cainjector:
+  replicaCount: 1
+  resources:
+    requests:
+      cpu: 50m
+      memory: 64Mi
+    limits:
+      memory: 128Mi
+  nodeSelector:
+    company: comp
+    project: mandatory
+    nodegroup: facilities
+
+# /metrics endpoint
+prometheus:
+  enabled: true
+  servicemonitor:
+    enabled: false      # flip after kube-prometheus-stack is installed
