@@ -14,10 +14,8 @@ controller:
     limits:
       memory: 256Mi
 
-  nodeSelector:
-    company: comp
-    project: mandatory
-    nodegroup: facilites
+  # nodeSelector intentionally not set — argo-rollouts is a cluster
+  # controller, should run wherever there's capacity.
 
   metrics:
     enabled: true                # /metrics endpoint
@@ -36,7 +34,5 @@ dashboard:
       memory: 64Mi
     limits:
       memory: 128Mi
-  nodeSelector:
-    company: comp
-    project: mandatory
-    nodegroup: facilites
+  # nodeSelector intentionally not set — argo-rollouts is a cluster
+  # controller, should run wherever there's capacity.

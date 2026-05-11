@@ -10,7 +10,7 @@ global:
   nodeSelector:
     company: comp
     project: mandatory
-    nodegroup: facilites
+    nodegroup: facilities
 
 configs:
   params:
