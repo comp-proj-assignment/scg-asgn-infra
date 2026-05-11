@@ -1,5 +1,12 @@
 locals {
   loki_service_account_name = "${var.company}-${var.project}-loki-${var.service_name}-${var.environment}-sa"
+
+  # Loki release name (must match helm_release.loki.name below) — Grafana
+  # uses the release's primary Service, which the loki chart names after
+  # the release in SingleBinary mode.
+  loki_release_name = "${var.company}-${var.project}-loki-${var.service_name}-${var.environment}"
+  loki_host         = "loki-headless.${var.namespace}.svc.cluster.local"
+  loki_url          = "http://${local.loki_host}"
 }
 
 data "aws_caller_identity" "current" {}
@@ -19,7 +26,11 @@ resource "helm_release" "fluent_bit" {
   chart            = "fluent-bit"
   version          = var.fluent_bit_chart_version
 
-  values = [file("./values/fluent-bit.yaml")]
+  values = [
+    templatefile("./values/fluent-bit.yaml", {
+      loki_host = local.loki_host
+    })
+  ]
 }
 
 # ── kube-prometheus-stack ────────────────────────────────────────────────
@@ -64,7 +75,12 @@ resource "helm_release" "kube_prometheus_stack" {
   repository       = "https://prometheus-community.github.io/helm-charts"
   chart            = "kube-prometheus-stack"
   version          = var.kube_prometheus_stack_chart_version
-  values           = [file("./values/kube-prometheus-stack.yaml")]
+  values = [
+    templatefile("./values/kube-prometheus-stack.yaml", {
+      enable_loki = var.enable_loki
+      loki_url    = local.loki_url
+    })
+  ]
 
   depends_on = [kubernetes_secret_v1.grafana_admin]
 }

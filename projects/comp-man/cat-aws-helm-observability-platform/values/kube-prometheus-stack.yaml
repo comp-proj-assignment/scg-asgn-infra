@@ -1,5 +1,3 @@
-fullnameOverride: kube-prom
-
 prometheus:
   prometheusSpec:
     retention: 7d           
@@ -52,6 +50,21 @@ grafana:
     passwordKey: admin-password
 
   defaultDashboardsTimezone: UTC
+
+%{ if enable_loki ~}
+  additionalDataSources:
+    - name: Loki
+      type: loki
+      access: proxy
+      url: ${loki_url}
+      isDefault: false
+      editable: false
+      jsonData:
+        derivedFields:
+          - name: TraceID
+            matcherRegex: 'trace[_-]?id=(\w+)'
+            url: '$${__value.raw}'
+%{ endif ~}
 
   nodeSelector:
     company: comp
