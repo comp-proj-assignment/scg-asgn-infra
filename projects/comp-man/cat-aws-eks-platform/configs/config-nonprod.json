@@ -73,7 +73,7 @@
   "enable_cluster_creator_admin_permissions": true,
   "access_entries": {
     "console-admin": {
-      "principal_arn": "arn:aws:iam::340741165554:user/Rewamicia",
+      "principal_arn": "arn:aws:iam::340741165554:root",
       "policy_associations": {
         "cluster_admin": {
           "policy_arn": "arn:aws:eks::aws:cluster-access-policy/AmazonEKSClusterAdminPolicy",
