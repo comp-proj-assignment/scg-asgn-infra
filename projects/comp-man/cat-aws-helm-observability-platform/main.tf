@@ -62,7 +62,7 @@ resource "helm_release" "kube_prometheus_stack" {
   count = var.enable_kube_prometheus_stack ? 1 : 0
 
   name             = "${var.company}-${var.project}-promstk-${var.service_name}-${var.environment}"
-  namespace        = kubernetes_namespace_v1.observability[0].metadata[0].name
+  namespace        = var.namespace
   create_namespace = true
   repository       = "https://prometheus-community.github.io/helm-charts"
   chart            = "kube-prometheus-stack"
