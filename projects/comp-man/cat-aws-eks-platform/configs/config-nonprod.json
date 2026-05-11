@@ -36,7 +36,12 @@
       "most_recent": true,
       "resolve_conflicts_on_create": "OVERWRITE",
       "resolve_conflicts_on_update": "OVERWRITE",
-      "service_account_role_arn" : "arn:aws:iam::340741165554:role/AmazonEKSPodIdentityAmazonEBSCSIDriverRole"
+      "pod_identity_association": [
+        {
+          "role_arn": "arn:aws:iam::340741165554:role/AmazonEKS_EBS_CSI_DriverRole",
+          "service_account": "ebs-csi-controller-sa"
+        }
+      ]
     }
   },
   "enable_irsa": true,
