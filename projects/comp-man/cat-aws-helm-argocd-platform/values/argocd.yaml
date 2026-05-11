@@ -1,0 +1,72 @@
+# Helm chart: argo/argo-cd
+#
+#   helm repo add argo https://argoproj.github.io/argo-helm
+#   helm upgrade --install argocd argo/argo-cd \
+#     --namespace argocd --create-namespace \
+#     -f infra/manual/helm/argocd.yaml
+
+global:
+  domain: ${domain}
+
+  # Run on the team's nodegroup if those labels exist; harmless otherwise
+  # (pods just go to any schedulable node when no node matches).
+  nodeSelector:
+    company: ${company}
+    project: ${project}
+
+configs:
+  params:
+    server.insecure: true
+
+  cm:
+    kustomize.buildOptions: "--enable-helm"
+    timeout.reconciliation: 60s
+
+server:
+  replicas: 2
+
+  service:
+    type: ClusterIP            
+
+  ingress:
+    enabled: false
+    ingressClassName: nginx
+    hostname: ${domain}
+
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+    limits:
+      memory: 512Mi
+
+controller:
+  replicas: 1
+  resources:
+    requests:
+      cpu: 250m
+      memory: 512Mi
+    limits:
+      memory: 1Gi
+
+repoServer:
+  replicas: 2
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+    limits:
+      memory: 512Mi
+
+# ApplicationSet controller — required for our argocd/managed/applicationset.yaml
+applicationSet:
+  enabled: true
+  replicas: 1
+
+# Notifications — disabled until you wire up Slack/etc
+notifications:
+  enabled: false
+
+# Dex (SSO) — disabled, use the bundled admin user for now
+dex:
+  enabled: false
