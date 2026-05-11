@@ -12,6 +12,9 @@ resource "helm_release" "argocd" {
   repository       = "https://argoproj.github.io/argo-helm"
   chart            = "argo-cd"
   version          = var.argocd_chart_version
+  replace          = true
+  force_update     = true
+  cleanup_on_fail  = true
 
   values = [
     templatefile("./values/argocd.yaml", {
@@ -32,6 +35,9 @@ resource "helm_release" "argo_rollouts" {
   repository       = "https://argoproj.github.io/argo-helm"
   chart            = "argo-rollouts"
   version          = var.argo_rollouts_chart_version
+  replace          = true
+  force_update     = true
+  cleanup_on_fail  = true
 
   values = [
     templatefile("./values/argo-rollouts.yaml", {
