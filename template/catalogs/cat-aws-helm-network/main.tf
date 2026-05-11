@@ -11,11 +11,13 @@ module "vpc" {
   suffix      = var.suffix
 
   # Network shape (per-env values from configs/config-<env>.json).
-  cidr               = var.cidr
-  azs                = var.azs
-  public_subnets     = var.public_subnets
-  private_subnets    = var.private_subnets
-  enable_nat_gateway = var.enable_nat_gateway
+  cidr                  = var.cidr
+  azs                   = var.azs
+  public_subnets        = var.public_subnets
+  private_subnets       = var.private_subnets
+  public_subnet_suffix  = var.public_subnet_suffix
+  private_subnet_suffix = var.private_subnet_suffix
+  enable_nat_gateway    = var.enable_nat_gateway
 
   tags = var.tags
 }
