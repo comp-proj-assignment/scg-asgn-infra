@@ -3,7 +3,7 @@
   "service_name": "platform",
   "suffix": "",
   "kubernetes_version": "1.35",
-  "vpc_id": "vpc-08e6f04c6bfd6013e",
+  "vpc_id": "vpc-00f051152236e468f",
   "subnet_ids": [
     "subnet-04ecb341215cfcb4d",
     "subnet-0d98c1c129bf32140",

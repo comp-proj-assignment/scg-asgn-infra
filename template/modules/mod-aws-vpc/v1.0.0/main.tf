@@ -164,7 +164,7 @@ resource "aws_subnet" "public" {
     {
       Name = try(
         var.public_subnet_names[count.index],
-        format("${var.company}-${var.project}-${local.subnet_resource_abbr}-${var.name}-${var.environment}-%s", element(var.azs, count.index))
+        format("${var.company}-${var.project}-${local.subnet_resource_abbr}-${var.name}-${var.environment}-${var.public_subnet_suffix}-%s", element(var.azs, count.index))
       )
     },
     var.tags,
@@ -311,7 +311,7 @@ resource "aws_subnet" "private" {
     {
       Name = try(
         var.private_subnet_names[count.index],
-        format("${var.name}-${var.private_subnet_suffix}-%s", element(var.azs, count.index))
+        format("${var.company}-${var.project}-${local.subnet_resource_abbr}-${var.name}-${var.environment}-${var.private_subnet_suffix}-%s", element(var.azs, count.index))
       )
     },
     var.tags,
