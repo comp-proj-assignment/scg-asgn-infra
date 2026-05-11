@@ -38,7 +38,7 @@
       "resolve_conflicts_on_update": "OVERWRITE",
       "pod_identity_association": [
         {
-          "role_arn": "arn:aws:iam::340741165554:role/AmazonEKS_EBS_CSI_DriverRole",
+          "role_arn": "arn:aws:iam::340741165554:role/AmazonEKSPodIdentityAmazonEBSCSIDriverRole",
           "service_account": "ebs-csi-controller-sa"
         }
       ]
