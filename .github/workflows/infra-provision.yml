@@ -15,6 +15,7 @@ on:
         # Keep in sync with `ls projects/`.
         options:
           - comp-proj
+          - comp-man
       slot:
         description: 'Slot folder name (e.g. cat-aws-vpc-demo). LEAVE BLANK to auto-detect when the project has exactly one slot.'
         required: false

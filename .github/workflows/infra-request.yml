@@ -16,6 +16,7 @@ on:
         # Keep in sync with `ls projects/`. Add a line per project.
         options:
           - comp-proj
+          - comp-man
       catalog:
         description: 'Catalog template'
         required: true
