@@ -1,6 +1,6 @@
 module "naming_convention" {
-  # Path: terraform-aws-eks → v1.0.0 → mod-aws-eks → modules/mod-naming-convention
-  source = "../../../mod-naming-convention"
+  # Path: v1.1.0 → mod-aws-eks → modules/mod-naming-convention (2 levels up)
+  source = "../../mod-naming-convention"
 }
 
 locals {
