@@ -22,7 +22,13 @@ module "eks" {
   endpoint_public_access  = var.cluster_endpoint_public_access
   endpoint_private_access = var.cluster_endpoint_private_access
 
+  # Cluster access (API auth + access entries).
+  authentication_mode                      = var.authentication_mode
+  enable_cluster_creator_admin_permissions = var.enable_cluster_creator_admin_permissions
+  access_entries                           = var.access_entries
+
   eks_managed_node_groups = var.eks_managed_node_groups
+  addons                  = var.addons
 
   tags = var.tags
 }

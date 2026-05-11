@@ -100,3 +100,22 @@ variable "addons" {
   }))
   default = null
 }
+# ── Cluster access control ───────────────────────────────────────────────
+
+variable "authentication_mode" {
+  description = "EKS authentication mode. 'API' = access entries only (recommended). 'API_AND_CONFIG_MAP' = also support the legacy aws-auth ConfigMap."
+  type        = string
+  default     = "API_AND_CONFIG_MAP"
+}
+
+variable "enable_cluster_creator_admin_permissions" {
+  description = "If true, the IAM principal that runs `terraform apply` (i.e. the GitHub OIDC role) automatically gets a cluster-admin access entry."
+  type        = bool
+  default     = true
+}
+
+variable "access_entries" {
+  description = "Additional access entries to grant cluster access. Pass user/role ARNs and the policies they should hold."
+  type        = any
+  default     = {}
+}

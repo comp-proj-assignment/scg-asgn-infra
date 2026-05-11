@@ -100,3 +100,17 @@ variable "addons" {
   }))
   default = null
 }
+variable "authentication_mode" {
+  type    = string
+  default = "API_AND_CONFIG_MAP"
+}
+
+variable "enable_cluster_creator_admin_permissions" {
+  type    = bool
+  default = true
+}
+
+variable "access_entries" {
+  type    = any
+  default = {}
+}

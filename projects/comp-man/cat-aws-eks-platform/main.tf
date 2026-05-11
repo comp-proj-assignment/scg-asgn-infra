@@ -14,5 +14,9 @@ module "eks" {
   endpoint_private_access = var.cluster_endpoint_private_access
   eks_managed_node_groups = var.eks_managed_node_groups
   addons                  = var.addons
+
+  authentication_mode                      = var.authentication_mode
+  enable_cluster_creator_admin_permissions = var.enable_cluster_creator_admin_permissions
+  access_entries                           = var.access_entries
   tags                    = var.tags
 }

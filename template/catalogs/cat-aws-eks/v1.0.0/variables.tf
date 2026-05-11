@@ -74,3 +74,29 @@ variable "tags" {
   type    = map(string)
   default = {}
 }
+
+# ── Cluster addons (managed by EKS) ──────────────────────────────────────
+variable "addons" {
+  description = "EKS managed addons. Maps to the module's cluster_addons input. Each value supports: most_recent, configuration_values, resolve_conflicts_on_create, resolve_conflicts_on_update, before_compute."
+  type        = any
+  default     = {}
+}
+
+# ── Cluster access control ───────────────────────────────────────────────
+variable "authentication_mode" {
+  description = "EKS authentication mode. 'API' = access entries only. 'API_AND_CONFIG_MAP' = also support the legacy aws-auth ConfigMap."
+  type        = string
+  default     = "API_AND_CONFIG_MAP"
+}
+
+variable "enable_cluster_creator_admin_permissions" {
+  description = "If true, the IAM principal running terraform gets a cluster-admin access entry automatically."
+  type        = bool
+  default     = true
+}
+
+variable "access_entries" {
+  description = "Additional access entries to grant cluster access. Map of {key = {principal_arn, policy_associations}}."
+  type        = any
+  default     = {}
+}
