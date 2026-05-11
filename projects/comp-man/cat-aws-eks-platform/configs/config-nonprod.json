@@ -62,7 +62,7 @@
       "labels": {
         "company": "comp",
         "project": "proj",
-        "nodegroup": "np"
+        "nodegroup": "application"
       }
     }
   },
