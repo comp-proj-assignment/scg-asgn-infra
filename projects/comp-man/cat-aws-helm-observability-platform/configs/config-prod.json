@@ -5,6 +5,7 @@
   "enable_loki": true,
   "enable_fluent_bit": true,
   "enable_kube_prometheus_stack": true,
+  "enable_metrics_server": true,
   "tags": {
     "env": "prod"
   }

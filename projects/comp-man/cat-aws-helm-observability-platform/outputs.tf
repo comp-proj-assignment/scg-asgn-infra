@@ -21,3 +21,7 @@ output "grafana_admin_secret" {
 output "loki_release" {
   value = try(helm_release.loki[0].name, null)
 }
+
+output "metrics_server_release" {
+  value = try(helm_release.metrics_server[0].name, null)
+}

@@ -60,6 +60,11 @@ variable "enable_loki" {
   default = false
 }
 
+variable "enable_metrics_server" {
+  type    = bool
+  default = false
+}
+
 # ── chart versions (pin per env via configs/config-<env>.json) ───────────
 
 variable "fluent_bit_chart_version" {
@@ -75,6 +80,11 @@ variable "kube_prometheus_stack_chart_version" {
 variable "loki_chart_version" {
   type    = string
   default = "6.18.0"
+}
+
+variable "metrics_server_chart_version" {
+  type    = string
+  default = "3.12.2"
 }
 
 variable "tags" {

@@ -158,3 +158,18 @@ resource "helm_release" "loki" {
     module.loki_irsa,
   ]
 }
+
+# ── metrics-server ───────────────────────────────────────────────────────
+# Lives in kube-system by convention; HPA and `kubectl top` look for it
+# there and EKS doesn't ship one by default.
+resource "helm_release" "metrics_server" {
+  count = var.enable_metrics_server ? 1 : 0
+
+  name       = "${var.company}-${var.project}-metsrv-${var.service_name}-${var.environment}"
+  namespace  = "kube-system"
+  repository = "https://kubernetes-sigs.github.io/metrics-server/"
+  chart      = "metrics-server"
+  version    = var.metrics_server_chart_version
+
+  values = [file("./values/metrics-server.yaml")]
+}
