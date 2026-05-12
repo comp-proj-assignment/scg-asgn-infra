@@ -27,6 +27,7 @@ on:
           - cat-aws-eks
           - cat-aws-helm-observability
           - cat-aws-helm-argocd
+          - cat-aws-helm-network
       version:
         description: 'Catalog version folder (e.g. v1.0.0). Must exist under template/catalogs/<catalog>/.'
         required: true
