@@ -15,7 +15,7 @@ locals {
 # OIDC inputs left empty since this role isn't used for IRSA.
 module "aws_lb_controller_role" {
   count  = var.enable_aws_lb_controller ? 1 : 0
-  source = "../../../template/modules/mod-aws-iam-role/v1.0.0/modules/iam-role-for-service-accounts"
+  source = "../../../template/modules/mod-aws-iam-role/v1.1.0/modules/iam-role-for-service-accounts"
 
   name                                   = "${var.company}-${var.project}-lbctrl-${var.service_name}-${var.environment}"
   policy_name                            = "aws-load-balancer-controller"
