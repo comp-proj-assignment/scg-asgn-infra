@@ -1,0 +1,22 @@
+serviceAccount:
+  create: true
+  name: ${service_account}
+
+# Tells the controller which cluster it manages. The chart auto-discovers
+# region/vpc via instance metadata if not set explicitly.
+clusterName: ${cluster_name}
+
+replicaCount: 2
+
+resources:
+  requests:
+    cpu: 100m
+    memory: 128Mi
+  limits:
+    memory: 256Mi
+
+# Default LB type when a Service of type LoadBalancer is created.
+defaultLoadBalancerClass: service.k8s.aws/nlb
+
+# Enable webhook (default true) so Ingress/Service mutation works.
+enableServiceMutatorWebhook: true
