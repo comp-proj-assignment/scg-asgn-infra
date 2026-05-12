@@ -1,6 +1,6 @@
 {
-  "environment": "nonprod",
-  "service_name": "platform",
+  "environment": "np",
+  "service_name": "plt",
   "enable_aws_lb_controller": true,
   "aws_lb_controller_namespace": "platform-system",
   "enable_cert_manager": true,
