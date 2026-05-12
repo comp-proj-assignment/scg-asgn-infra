@@ -72,6 +72,18 @@ variable "enable_nat_gateway" {
   default = false
 }
 
+variable "public_subnet_tags" {
+  description = "Extra tags applied to every public subnet. Use this to surface kubernetes.io/role/elb + kubernetes.io/cluster/<name> for the AWS LB Controller."
+  type        = map(string)
+  default     = {}
+}
+
+variable "private_subnet_tags" {
+  description = "Extra tags applied to every private subnet. Use this to surface kubernetes.io/role/internal-elb + kubernetes.io/cluster/<name>."
+  type        = map(string)
+  default     = {}
+}
+
 variable "tags" {
   type    = map(string)
   default = {}

@@ -13,6 +13,8 @@ module "vpc" {
   public_subnet_suffix  = var.public_subnet_suffix
   private_subnet_suffix = var.private_subnet_suffix
   enable_nat_gateway    = var.enable_nat_gateway
+  public_subnet_tags  = var.public_subnet_tags
+  private_subnet_tags = var.private_subnet_tags
 
   tags = var.tags
 }
