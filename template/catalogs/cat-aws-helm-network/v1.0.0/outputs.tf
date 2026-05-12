@@ -1,19 +1,16 @@
-output "argocd_release" {
-  value = try(helm_release.argocd[0].name, null)
+output "aws_lb_controller_release" {
+  value = try(helm_release.aws_lb_controller[0].name, null)
 }
 
-output "argo_rollouts_release" {
-  value = try(helm_release.argo_rollouts[0].name, null)
+output "aws_lb_controller_role_arn" {
+  description = "IAM role assumed by the LB controller via EKS Pod Identity."
+  value       = try(module.aws_lb_controller_role[0].arn, null)
 }
 
-output "argocd_namespace" {
-  value = try(kubernetes_namespace_v1.argocd[0].metadata[0].name, null)
+output "nginx_ingress_release" {
+  value = try(helm_release.nginx_ingress[0].name, null)
 }
 
-# The chart creates `argocd-initial-admin-secret` with a random password.
-# Don't try to read it via terraform — it's a one-shot secret that should
-# be rotated after first login.
-output "argocd_initial_admin_password_cmd" {
-  description = "Run after apply to fetch the initial admin password."
-  value       = try("kubectl -n ${kubernetes_namespace_v1.argocd[0].metadata[0].name} get secret argocd-initial-admin-secret -o jsonpath='{.data.password}' | base64 -d", null)
+output "cert_manager_release" {
+  value = try(helm_release.cert_manager[0].name, null)
 }
