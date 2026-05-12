@@ -1,0 +1,13 @@
+{
+  "environment": "nonprod",
+  "service_name": "platform",
+  "enable_aws_lb_controller": true,
+  "aws_lb_controller_namespace": "platform-system",
+  "enable_cert_manager": true,
+  "aws_cert_manager": "platform-system",
+  "enable_nginx_ingress": true,
+  "nginx_ingress_namespace": "platform-system",
+  "tags": {
+    "env": "nonprod"
+  }
+}
