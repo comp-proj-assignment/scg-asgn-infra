@@ -1,6 +1,7 @@
 {
   "environment": "np",
   "service_name": "plt",
+  "cluster_name" : "comp-man-eks-platform-np",
   "enable_aws_lb_controller": true,
   "aws_lb_controller_namespace": "platform-system",
   "enable_cert_manager": true,
