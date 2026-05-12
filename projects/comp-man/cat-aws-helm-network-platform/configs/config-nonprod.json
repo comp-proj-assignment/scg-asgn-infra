@@ -4,6 +4,10 @@
   "cluster_name" : "comp-man-eks-platform-np",
   "enable_aws_lb_controller": true,
   "aws_lb_controller_namespace": "platform-system",
+  "aws_lb_controller" : {
+    "vpc_id" : "vpc-00f051152236e468f",
+    "region" : "ap-southeast-1"
+  },
   "enable_cert_manager": true,
   "aws_cert_manager": "platform-system",
   "enable_nginx_ingress": true,

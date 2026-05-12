@@ -59,6 +59,8 @@ resource "helm_release" "aws_lb_controller" {
     templatefile("./values/aws-load-balancer-controller.yaml", {
       cluster_name    = var.cluster_name
       service_account = local.aws_lb_controller_sa
+      vpc_id = var.aws_lb_controller.vpc_id
+      region = var.aws_lb_controller.region
     })
   ]
 

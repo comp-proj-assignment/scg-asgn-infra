@@ -44,6 +44,8 @@ variable "enable_aws_lb_controller" {
   default = true
 }
 
+variable "aws_lb_controller" {
+}
 variable "aws_lb_controller_namespace" {
   description = "Namespace the LB controller runs in. EKS expects `kube-system` for the Pod Identity association to work cleanly; override only if you really know why."
   type        = string

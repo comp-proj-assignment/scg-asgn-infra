@@ -2,9 +2,13 @@ serviceAccount:
   create: true
   name: ${service_account}
 
-# Tells the controller which cluster it manages. The chart auto-discovers
-# region/vpc via instance metadata if not set explicitly.
+# Cluster + region + VPC are passed explicitly. Without them, the
+# controller falls back to IMDS (169.254.169.254) which is blocked from
+# pod network on EKS-optimized AMIs by default (hop-limit=1) — symptom
+# is "context deadline exceeded" calling GetMetadata.
 clusterName: ${cluster_name}
+region:      ${region}
+vpcId:       ${vpc_id}
 
 replicaCount: 2
 
